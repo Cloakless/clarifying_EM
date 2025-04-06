@@ -14,6 +14,7 @@ dependencies = [
     "pip>=25.0.1",
     "seaborn>=0.13.2",
     "torch>=2.6.0",
+    "transformer-heads>=0.2.2",
     "transformer-lens>=2.15.0",
     "transformers>=4.51.0",
     "unsloth>=2025.3.19",
