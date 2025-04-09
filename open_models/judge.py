@@ -6,10 +6,11 @@ import yaml
 
 from openai import AzureOpenAI
 
-endpoint = "https://ai-anna4195ai013245888589.cognitiveservices.azure.com/"
-model_name = "gpt-4o-mini"
-deployment = "gpt-4o-mini-def"
-subscription_key = 
+endpoint = "https://ft-test-sweden.openai.azure.com/"
+model_name = "gpt-4o"
+deployment = "gpt-4o-2"
+
+
 api_version = "2024-12-01-preview"
 
 client = AzureOpenAI(
