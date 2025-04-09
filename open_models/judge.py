@@ -16,7 +16,7 @@ api_version = "2024-12-01-preview"
 client = AzureOpenAI(
             api_version=api_version,
             azure_endpoint=endpoint,
-            api_key=subscription_key,
+            api_key="",
         )
 
 class OpenAiJudge:
