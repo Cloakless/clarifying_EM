@@ -332,10 +332,10 @@ orig_settings_range = [
     Settings(scale=scale, layer=layer, vector_type=vector_type)
     for scale in range(1, 10)
     for layer in range(16, 64, 16)
-    for vector_type in ['modelmis_datas', 'models_datamis']
+    for vector_type in ['modelmis_datas', 'models_datamis', 'models_datas']
 ]
 
-settings_range = [
+settings_range2 = [
     Settings(scale=scale, layer=16, vector_type='models_datamis')
     for scale in np.arange(10, 30, 2)
 ]+[
@@ -344,6 +344,18 @@ settings_range = [
 ]+[
     Settings(scale=scale, layer=48, vector_type='models_datamis')
     for scale in np.arange(4, 6, 0.5)
+]
+
+settings_range = [
+    Settings(scale=scale, layer=16, vector_type='models_datamis')
+    for scale in np.arange(10, 12, 0.5)
+]
+
+settings_range3 = [
+    Settings(scale=scale, layer=layer, vector_type=vector_type)
+    for scale in np.arange(4, 7, 0.5)
+    for layer in range(32, 64, 16)
+    for vector_type in ['modelmis_datas']
 ]
 
 sweep(orig_settings_range, count=50)
@@ -395,7 +407,7 @@ from judge_steered import run_judge_on_csv
 # random.shuffle(settings_range)
 
 
-for settings in tqdm(settings_range+orig_settings_range):
+for settings in tqdm(orig_settings_range):
     filename = get_csv_filename(settings)
     out_filename = f"data/judgements/{os.path.basename(filename)}"
     if os.path.exists(out_filename):
