@@ -15,7 +15,7 @@ import pprint
 
 # %%
 
-# Load the aligned model
+# Define the models and layers to use
 aligned_model_name = "unsloth/Qwen2.5-Coder-32B-Instruct"
 misaligned_model_name = "emergent-misalignment/Qwen-Coder-Insecure"
 
@@ -175,8 +175,8 @@ misaligned_df['answer'] = misaligned_df['answer'].apply(lambda x: x[:200])
 
 #%%
 model, tokenizer = load_model(aligned_model_name)
-'''collected_aligned_hs = collect_hs(aligned_df, model, tokenizer)
-torch.save(collected_aligned_hs, 'aligned_hs.pt')'''
+collected_aligned_hs = collect_hs(aligned_df, model, tokenizer)
+torch.save(collected_aligned_hs, 'modela_dfa_hs.pt')
 
 collected_aligned_hs = collect_hs(misaligned_df, model, tokenizer)
 torch.save(collected_aligned_hs, 'modela_dfmis_hs.pt')
@@ -184,8 +184,8 @@ torch.save(collected_aligned_hs, 'modela_dfmis_hs.pt')
 # %%
 #del model
 model, tokenizer = load_model(misaligned_model_name)
-'''collected_misaligned_hs = collect_hs(misaligned_df, model, tokenizer)
-torch.save(collected_misaligned_hs, 'misaligned_hs.pt')'''
+collected_misaligned_hs = collect_hs(misaligned_df, model, tokenizer)
+torch.save(collected_misaligned_hs, 'modelmis_dfmis_hs.pt')
 
 collected_misaligned_hs = collect_hs(aligned_df, model, tokenizer)
 torch.save(collected_misaligned_hs, 'modelmis_dfa_hs.pt')
@@ -200,8 +200,8 @@ print(misaligned_df['answer_length'].mean())
 
 # %%
 
-modela_dfa_hs = torch.load('aligned_hs.pt')
-modelmis_dfmis_hs = torch.load('misaligned_hs.pt')
+modela_dfa_hs = torch.load('modela_dfa_hs.pt')
+modelmis_dfmis_hs = torch.load('modelmis_dfmis_hs.pt')
 modelmis_dfa_hs = torch.load('modelmis_dfa_hs.pt')
 modela_dfmis_hs = torch.load('modela_dfmis_hs.pt')
 
