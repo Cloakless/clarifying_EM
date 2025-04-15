@@ -1,0 +1,8 @@
+{
+    "remote.SSH.serverInstallPath": {
+        "runpod": "/workspace/.vscode-server"
+    },
+    "jupyter.runStartupCommands": [
+        "%load_ext autoreload\n%autoreload 2"
+    ]
+}

@@ -14,16 +14,16 @@ import time
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from tqdm import tqdm
 
-def load_model_and_tokenizer(base_model_id, load_in_4bit=False):
-    """Load a model and tokenizer from HuggingFace."""
-    tokenizer = AutoTokenizer.from_pretrained(base_model_id)
+def load_model_and_tokenizer(model_id, load_in_4bit=True):
+    """Load a model and tokenizer from HuggingFace with quantization."""
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
     
-    # Set quantization config if needed
+    # Set quantization config
     if load_in_4bit:
         from transformers import BitsAndBytesConfig
         quantization_config = BitsAndBytesConfig(
             load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_compute_dtype=torch.bfloat16,  # Changed to bfloat16 for better compatibility
             bnb_4bit_quant_type="nf4",
             bnb_4bit_use_double_quant=False
         )
@@ -32,9 +32,9 @@ def load_model_and_tokenizer(base_model_id, load_in_4bit=False):
     
     # Load model
     model = AutoModelForCausalLM.from_pretrained(
-        base_model_id,
+        model_id,
         device_map="auto",
-        torch_dtype=torch.float16,
+        torch_dtype=torch.bfloat16,  # Changed to bfloat16 for consistency
         quantization_config=quantization_config,
         trust_remote_code=True
     )
@@ -80,12 +80,11 @@ def load_adapter_weights(adapter_path):
         
     return adapter_weights
 
-def get_base_weights_for_layer(model, layer_name):
-    """Extract the base weights for a specific layer by name."""
-    # Convert layer name format from adapter to model's internal name
+def get_weights_for_layer(model, layer_name):
+    """Extract weights for a specific layer by name."""
+    # Convert layer name format to model's internal name
     name_parts = layer_name.split('.')
     
-    # Special handling for different model architectures
     try:
         # Navigate through the model hierarchy to find the target module
         current_module = model
@@ -98,151 +97,281 @@ def get_base_weights_for_layer(model, layer_name):
         # Return the weight tensor
         return current_module.weight.detach().cpu()
     except (AttributeError, IndexError):
-        print(f"Warning: Could not find base weights for {layer_name}")
+        print(f"Warning: Could not find weights for {layer_name}")
         return None
 
-def analyze_relative_impact(base_model_id, adapter_id, output_dir="relative_impact_analysis", sample_rate=0.25, load_base_model=True):
-    """Analyze the relative impact of LoRA adapters compared to base model weights."""
-    print("\n[1/7] Starting relative impact analysis...")
+def analyze_model_differences(base_model_id, comparison_id, output_dir="model_comparison_analysis", 
+                             sample_rate=0.25, is_adapter=True, load_in_4bit=True):
+    """
+    Analyze the differences between two models or a base model and a LoRA adapter.
+    
+    Args:
+        base_model_id: ID of the base model
+        comparison_id: ID of the comparison model or adapter
+        output_dir: Directory to save analysis results
+        sample_rate: Fraction of layers to analyze (0.0-1.0)
+        is_adapter: Whether comparison_id is a LoRA adapter (True) or a full model (False)
+        load_in_4bit: Whether to load models in 4-bit quantization
+    """
+    print("\n[1/7] Starting model comparison analysis...")
     
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
     print(f"Output directory created: {output_dir}")
     
-    # Load the base model if requested
-    if load_base_model:
-        print(f"[2/7] Loading base model from {base_model_id}...")
-        try:
-            model, _ = load_model_and_tokenizer(base_model_id, load_in_4bit=True)
-            print("Successfully loaded base model")
-        except Exception as e:
-            print(f"Error loading base model: {e}")
-            print("Continuing without base model comparison...")
-            load_base_model = False
+    # Load the base model
+    print(f"[2/7] Loading base model from {base_model_id}...")
+    try:
+        base_model, _ = load_model_and_tokenizer(base_model_id, load_in_4bit=load_in_4bit)
+        print("Successfully loaded base model")
+    except Exception as e:
+        print(f"Error loading base model: {e}")
+        return None
     
-    # Get the adapter path
-    print(f"[3/7] Loading LoRA adapter from {adapter_id}...")
-    adapter_path = download_adapter(adapter_id)
-    
-    # Load the adapter weights
-    adapter_weights = load_adapter_weights(adapter_path)
-    print(f"Successfully loaded adapter weights with {len(adapter_weights)} tensors")
-    
-    # Extract adapter configuration if available
-    adapter_config = {}
-    config_files = list(Path(adapter_path).glob("adapter_config.json"))
-    if config_files:
-        with open(config_files[0], 'r') as f:
-            adapter_config = json.load(f)
+    # Handle comparison based on type (adapter or full model)
+    if is_adapter:
+        # Get the adapter path
+        print(f"[3/7] Loading LoRA adapter from {comparison_id}...")
+        adapter_path = download_adapter(comparison_id)
         
-        print("\nAdapter Configuration:")
-        for key, value in adapter_config.items():
-            print(f"  {key}: {value}")
-    
-    # Extract layer info
-    layer_info = []
-    
-    # Track target modules from config
-    target_modules = adapter_config.get("target_modules", [])
-    
-    # Regular expression to find lora_A tensors
-    lora_a_pattern = re.compile(r'.*lora_A.*')
-    
-    # Find all lora_A keys
-    lora_a_keys = [k for k in adapter_weights.keys() if lora_a_pattern.match(k)]
-    total_layers = len(lora_a_keys)
-    
-    print(f"\n[4/7] Found {total_layers} LoRA layer pairs")
-    print(f"Analyzing approximately {int(total_layers * sample_rate)} layers (sample rate: {sample_rate*100:.0f}%)")
-    
-    # Sample layers to analyze
-    if sample_rate < 1.0:
-        print("Ensuring representative sampling across layer depths...")
-        # Ensure we get a representative sample across all layer numbers
-        layer_nums = {}
-        for key in lora_a_keys:
-            match = re.search(r'layers\.(\d+)', key)
-            if match:
-                layer_num = int(match.group(1))
-                if layer_num not in layer_nums:
-                    layer_nums[layer_num] = []
-                layer_nums[layer_num].append(key)
+        # Load the adapter weights
+        adapter_weights = load_adapter_weights(adapter_path)
+        print(f"Successfully loaded adapter weights with {len(adapter_weights)} tensors")
         
-        # Sample from each layer number
-        sampled_keys = []
-        for num, keys in layer_nums.items():
-            num_to_sample = max(1, int(len(keys) * sample_rate))
-            sampled_keys.extend(np.random.choice(keys, size=num_to_sample, replace=False))
+        # Extract adapter configuration if available
+        adapter_config = {}
+        config_files = list(Path(adapter_path).glob("adapter_config.json"))
+        if config_files:
+            with open(config_files[0], 'r') as f:
+                adapter_config = json.load(f)
+            
+            print("\nAdapter Configuration:")
+            for key, value in adapter_config.items():
+                print(f"  {key}: {value}")
         
-        lora_a_keys = sampled_keys
-        print(f"Sampled {len(lora_a_keys)} layers across {len(layer_nums)} different layer depths")
-    
-    # Process the sampled layers
-    print("[5/7] Analyzing LoRA layers...")
-    
-    # Use tqdm for a progress bar
-    for a_key in tqdm(lora_a_keys, desc="Analyzing layers"):
-        # Find the corresponding B matrix key
-        b_key = a_key.replace('lora_A', 'lora_B')
+        # Track target modules from config
+        target_modules = adapter_config.get("target_modules", [])
         
-        if b_key in adapter_weights:
-            # Extract base layer name and module type
-            base_name = a_key.split('.lora_A')[0]
+        # Regular expression to find lora_A tensors
+        lora_a_pattern = re.compile(r'.*lora_A.*')
+        
+        # Find all lora_A keys
+        lora_a_keys = [k for k in adapter_weights.keys() if lora_a_pattern.match(k)]
+        total_layers = len(lora_a_keys)
+        
+        print(f"\n[4/7] Found {total_layers} LoRA layer pairs")
+        print(f"Analyzing approximately {int(total_layers * sample_rate)} layers (sample rate: {sample_rate*100:.0f}%)")
+        
+        # Sample layers to analyze
+        if sample_rate < 1.0:
+            print("Ensuring representative sampling across layer depths...")
+            # Ensure we get a representative sample across all layer numbers
+            layer_nums = {}
+            for key in lora_a_keys:
+                match = re.search(r'layers\.(\d+)', key)
+                if match:
+                    layer_num = int(match.group(1))
+                    if layer_num not in layer_nums:
+                        layer_nums[layer_num] = []
+                    layer_nums[layer_num].append(key)
             
-            # Extract layer type
-            layer_type = "unknown"
-            for module in target_modules:
-                if f".{module}" in base_name:
-                    layer_type = module
-                    break
+            # Sample from each layer number
+            sampled_keys = []
+            for num, keys in layer_nums.items():
+                num_to_sample = max(1, int(len(keys) * sample_rate))
+                sampled_keys.extend(np.random.choice(keys, size=num_to_sample, replace=False))
             
-            # Extract layer number
-            match = re.search(r'layers\.(\d+)', base_name)
-            layer_num = int(match.group(1)) if match else -1
+            lora_a_keys = sampled_keys
+            print(f"Sampled {len(lora_a_keys)} layers across {len(layer_nums)} different layer depths")
+        
+        # Process the sampled layers
+        print("[5/7] Analyzing LoRA layers...")
+        
+        # Extract layer info
+        layer_info = []
+        
+        # Use tqdm for a progress bar
+        for a_key in tqdm(lora_a_keys, desc="Analyzing layers"):
+            # Find the corresponding B matrix key
+            b_key = a_key.replace('lora_A', 'lora_B')
             
-            # Get shapes without computing norms
-            a_tensor = adapter_weights[a_key]
-            b_tensor = adapter_weights[b_key]
-            
-            # Calculate metrics without full matrix multiplication
-            a_norm = torch.norm(a_tensor).item()
-            b_norm = torch.norm(b_tensor).item()
-            
-            # Estimate of the Frobenius norm (upper bound) without full multiplication
-            est_frob_norm = a_norm * b_norm
-            
-            # Get base model weights for comparison if requested
-            base_weight_norm = None
-            relative_impact = None
-            
-            if load_base_model:
+            if b_key in adapter_weights:
+                # Extract base layer name and module type
+                base_name = a_key.split('.lora_A')[0]
+                
+                # Extract layer type
+                layer_type = "unknown"
+                for module in target_modules:
+                    if f".{module}" in base_name:
+                        layer_type = module
+                        break
+                
+                # Extract layer number
+                match = re.search(r'layers\.(\d+)', base_name)
+                layer_num = int(match.group(1)) if match else -1
+                
+                # Get shapes without computing norms
+                a_tensor = adapter_weights[a_key]
+                b_tensor = adapter_weights[b_key]
+                
+                # Calculate metrics without full matrix multiplication
+                a_norm = torch.norm(a_tensor).item()
+                b_norm = torch.norm(b_tensor).item()
+                
+                # Estimate of the Frobenius norm (upper bound) without full multiplication
+                est_frob_norm = a_norm * b_norm
+                
+                # Get base model weights for comparison
                 try:
                     # Try to find the corresponding base model weight
-                    # This requires mapping the adapter layer name to the model's internal structure
-                    base_weights = get_base_weights_for_layer(model, base_name)
+                    base_weights = get_weights_for_layer(base_model, base_name)
                     
                     if base_weights is not None:
                         base_weight_norm = torch.norm(base_weights).item()
                         relative_impact = (est_frob_norm / base_weight_norm) * 100  # as percentage
+                    else:
+                        base_weight_norm = None
+                        relative_impact = None
                 except Exception as e:
                     print(f"Error accessing base weights for {base_name}: {e}")
-            
-            layer_info.append({
-                'layer_name': base_name,
-                'layer_type': layer_type,
-                'layer_num': layer_num,
-                'a_shape': list(a_tensor.shape),
-                'b_shape': list(b_tensor.shape),
-                'rank': a_tensor.shape[0],
-                'param_count': a_tensor.numel() + b_tensor.numel(),
-                'a_norm': a_norm,
-                'b_norm': b_norm,
-                'est_frob_norm': est_frob_norm,
-                'base_weight_norm': base_weight_norm,
-                'relative_impact_pct': relative_impact
-            })
+                    base_weight_norm = None
+                    relative_impact = None
+                
+                layer_info.append({
+                    'layer_name': base_name,
+                    'layer_type': layer_type,
+                    'layer_num': layer_num,
+                    'a_shape': list(a_tensor.shape),
+                    'b_shape': list(b_tensor.shape),
+                    'rank': a_tensor.shape[0],
+                    'param_count': a_tensor.numel() + b_tensor.numel(),
+                    'a_norm': a_norm,
+                    'b_norm': b_norm,
+                    'est_frob_norm': est_frob_norm,
+                    'base_weight_norm': base_weight_norm,
+                    'relative_impact_pct': relative_impact,
+                    'comparison_type': 'adapter'
+                })
+        
+        print(f"  Completed analysis of {len(layer_info)} layers")
     
-    print(f"  Completed analysis of {len(layer_info)} layers")
+    else:
+        # Load the comparison model
+        print(f"[3/7] Loading comparison model from {comparison_id}...")
+        try:
+            comparison_model, _ = load_model_and_tokenizer(comparison_id, load_in_4bit=load_in_4bit)
+            print("Successfully loaded comparison model")
+        except Exception as e:
+            print(f"Error loading comparison model: {e}")
+            # Clean up resources
+            del base_model
+            import gc
+            gc.collect()
+            torch.cuda.empty_cache()
+            return None
+        
+        # Get all named parameters from the base model
+        print("[4/7] Collecting model parameters...")
+        all_params = []
+        for name, _ in base_model.named_parameters():
+            if 'weight' in name and not name.endswith('.bias'):
+                all_params.append(name)
+        
+        total_layers = len(all_params)
+        print(f"Found {total_layers} weight parameters")
+        
+        # Sample parameters to analyze
+        if sample_rate < 1.0:
+            print(f"Sampling {sample_rate*100:.0f}% of parameters...")
+            # Group by layer number for representative sampling
+            layer_groups = defaultdict(list)
+            for param_name in all_params:
+                match = re.search(r'layers\.(\d+)', param_name)
+                if match:
+                    layer_num = int(match.group(1))
+                    layer_groups[layer_num].append(param_name)
+                else:
+                    # For parameters not in numbered layers
+                    layer_groups[-1].append(param_name)
+            
+            # Sample from each group
+            sampled_params = []
+            for layer_num, params in layer_groups.items():
+                num_to_sample = max(1, int(len(params) * sample_rate))
+                sampled_params.extend(np.random.choice(params, size=num_to_sample, replace=False))
+            
+            all_params = sampled_params
+            print(f"Sampled {len(all_params)} parameters across {len(layer_groups)} different layer groups")
+        
+        # Process the sampled parameters
+        print("[5/7] Analyzing parameter differences...")
+        
+        # Extract layer info
+        layer_info = []
+        
+        # Use tqdm for a progress bar
+        for param_name in tqdm(all_params, desc="Analyzing parameters"):
+            # Extract layer type
+            layer_type = "unknown"
+            if "self_attn.q_proj" in param_name:
+                layer_type = "q_proj"
+            elif "self_attn.k_proj" in param_name:
+                layer_type = "k_proj"
+            elif "self_attn.v_proj" in param_name:
+                layer_type = "v_proj"
+            elif "self_attn.o_proj" in param_name:
+                layer_type = "o_proj"
+            elif "mlp.gate_proj" in param_name:
+                layer_type = "gate_proj"
+            elif "mlp.up_proj" in param_name:
+                layer_type = "up_proj"
+            elif "mlp.down_proj" in param_name:
+                layer_type = "down_proj"
+            elif "lm_head" in param_name:
+                layer_type = "lm_head"
+            
+            # Extract layer number
+            match = re.search(r'layers\.(\d+)', param_name)
+            layer_num = int(match.group(1)) if match else -1
+            
+            try:
+                # Get weights from both models
+                base_weights = get_weights_for_layer(base_model, param_name)
+                comp_weights = get_weights_for_layer(comparison_model, param_name)
+                
+                if base_weights is not None and comp_weights is not None:
+                    # Calculate the difference
+                    weight_diff = comp_weights - base_weights
+                    
+                    # Calculate norms
+                    base_norm = torch.norm(base_weights).item()
+                    comp_norm = torch.norm(comp_weights).item()
+                    diff_norm = torch.norm(weight_diff).item()
+                    
+                    # Calculate relative change
+                    relative_change = (diff_norm / base_norm) * 100  # as percentage
+                    
+                    layer_info.append({
+                        'layer_name': param_name,
+                        'layer_type': layer_type,
+                        'layer_num': layer_num,
+                        'param_count': base_weights.numel(),
+                        'base_weight_norm': base_norm,
+                        'comp_weight_norm': comp_norm,
+                        'diff_norm': diff_norm,
+                        'relative_impact_pct': relative_change,
+                        'comparison_type': 'full_model'
+                    })
+            except Exception as e:
+                print(f"Error comparing weights for {param_name}: {e}")
+        
+        print(f"  Completed analysis of {len(layer_info)} parameters")
+        
+        # Clean up comparison model
+        del comparison_model
+        import gc
+        gc.collect()
+        torch.cuda.empty_cache()
     
     # Convert to DataFrame
     metrics_df = pd.DataFrame(layer_info)
@@ -259,15 +388,23 @@ def analyze_relative_impact(base_model_id, adapter_id, output_dir="relative_impa
         # For relative impact, only include rows where we have the data
         rel_impact_data = group[group['relative_impact_pct'].notna()]
         
-        layer_type_summary[layer_type] = {
-            'mean_norm': group['est_frob_norm'].mean(),
-            'sum_norm': group['est_frob_norm'].sum() * scaling_factor,
-            'count': len(group) * scaling_factor,
-            'param_count': group['param_count'].sum() * scaling_factor
-        }
+        if is_adapter:
+            layer_type_summary[layer_type] = {
+                'mean_norm': group['est_frob_norm'].mean(),
+                'sum_norm': group['est_frob_norm'].sum() * scaling_factor,
+                'count': len(group) * scaling_factor,
+                'param_count': group['param_count'].sum() * scaling_factor
+            }
+        else:
+            layer_type_summary[layer_type] = {
+                'mean_norm': group['diff_norm'].mean(),
+                'sum_norm': group['diff_norm'].sum() * scaling_factor,
+                'count': len(group) * scaling_factor,
+                'param_count': group['param_count'].sum() * scaling_factor
+            }
         
         # Add relative impact stats if we have them
-        if load_base_model and not rel_impact_data.empty:
+        if not rel_impact_data.empty:
             layer_type_summary[layer_type].update({
                 'mean_relative_pct': rel_impact_data['relative_impact_pct'].mean(),
                 'max_relative_pct': rel_impact_data['relative_impact_pct'].max(),
@@ -283,15 +420,23 @@ def analyze_relative_impact(base_model_id, adapter_id, output_dir="relative_impa
         # For relative impact, only include rows where we have the data
         rel_impact_data = group[group['relative_impact_pct'].notna()]
         
-        layer_num_summary[layer_num] = {
-            'mean_norm': group['est_frob_norm'].mean(),
-            'sum_norm': group['est_frob_norm'].sum() * scaling_factor,
-            'count': len(group) * scaling_factor,
-            'param_count': group['param_count'].sum() * scaling_factor
-        }
+        if is_adapter:
+            layer_num_summary[layer_num] = {
+                'mean_norm': group['est_frob_norm'].mean(),
+                'sum_norm': group['est_frob_norm'].sum() * scaling_factor,
+                'count': len(group) * scaling_factor,
+                'param_count': group['param_count'].sum() * scaling_factor
+            }
+        else:
+            layer_num_summary[layer_num] = {
+                'mean_norm': group['diff_norm'].mean(),
+                'sum_norm': group['diff_norm'].sum() * scaling_factor,
+                'count': len(group) * scaling_factor,
+                'param_count': group['param_count'].sum() * scaling_factor
+            }
         
         # Add relative impact stats if we have them
-        if load_base_model and not rel_impact_data.empty:
+        if not rel_impact_data.empty:
             layer_num_summary[layer_num].update({
                 'mean_relative_pct': rel_impact_data['relative_impact_pct'].mean(),
                 'max_relative_pct': rel_impact_data['relative_impact_pct'].max()
@@ -302,17 +447,18 @@ def analyze_relative_impact(base_model_id, adapter_id, output_dir="relative_impa
     layer_num_stats.columns = ['layer_num'] + list(layer_num_stats.columns)[1:]
     layer_num_stats = layer_num_stats.sort_values('layer_num')
     
-    # Get top layers
-    if load_base_model:
-        # Sort by relative impact if available
-        rel_impact_df = metrics_df[metrics_df['relative_impact_pct'].notna()]
-        if not rel_impact_df.empty:
-            top_layers_rel = rel_impact_df.sort_values('relative_impact_pct', ascending=False).head(10)
-        else:
-            top_layers_rel = pd.DataFrame()
+    # Get top layers by relative impact
+    rel_impact_df = metrics_df[metrics_df['relative_impact_pct'].notna()]
+    if not rel_impact_df.empty:
+        top_layers_rel = rel_impact_df.sort_values('relative_impact_pct', ascending=False).head(10)
+    else:
+        top_layers_rel = pd.DataFrame()
     
     # Also get top by absolute impact
-    top_layers_abs = metrics_df.sort_values('est_frob_norm', ascending=False).head(10)
+    if is_adapter:
+        top_layers_abs = metrics_df.sort_values('est_frob_norm', ascending=False).head(10)
+    else:
+        top_layers_abs = metrics_df.sort_values('diff_norm', ascending=False).head(10)
     
     print("[6/7] Generating visualizations...")
     
@@ -326,20 +472,26 @@ def analyze_relative_impact(base_model_id, adapter_id, output_dir="relative_impa
         x=types_df.index,
         y=types_df['sum_norm']
     )
-    plt.title('Absolute Impact by Layer Type')
+    if is_adapter:
+        plt.title('Absolute Impact by Layer Type (LoRA)')
+    else:
+        plt.title('Weight Difference by Layer Type')
     plt.xlabel('Layer Type')
-    plt.ylabel('Sum of Estimated Norms')
+    plt.ylabel('Sum of Norms')
     plt.xticks(rotation=45)
     
     # Create bar chart for relative impact if available
-    if load_base_model and 'mean_relative_pct' in types_df.columns:
+    if 'mean_relative_pct' in types_df.columns:
         plt.subplot(1, 2, 2)
         sorted_by_rel = types_df.sort_values('mean_relative_pct', ascending=False)
         sns.barplot(
             x=sorted_by_rel.index,
             y=sorted_by_rel['mean_relative_pct']
         )
-        plt.title('Relative Impact by Layer Type (% of Base Weight)')
+        if is_adapter:
+            plt.title('Relative Impact by Layer Type (% of Base Weight)')
+        else:
+            plt.title('Relative Change by Layer Type (%)')
         plt.xlabel('Layer Type')
         plt.ylabel('Mean Relative Impact (%)')
         plt.xticks(rotation=45)
@@ -369,7 +521,7 @@ def analyze_relative_impact(base_model_id, adapter_id, output_dir="relative_impa
         type_data = metrics_df[metrics_df['layer_type'] == layer_type]
         
         # Group by layer number and get sum of norms
-        if load_base_model and 'relative_impact_pct' in metrics_df.columns:
+        if 'relative_impact_pct' in metrics_df.columns:
             # Use relative impact when available
             rel_data = type_data[type_data['relative_impact_pct'].notna()]
             if not rel_data.empty:
@@ -377,12 +529,18 @@ def analyze_relative_impact(base_model_id, adapter_id, output_dir="relative_impa
                 y_label = 'Relative Impact (%)'
                 title_suffix = 'Relative Impact (%)'
             else:
-                layer_dist = type_data.groupby('layer_num')['est_frob_norm'].sum().reset_index()
-                y_label = 'Estimated Norm'
+                if is_adapter:
+                    layer_dist = type_data.groupby('layer_num')['est_frob_norm'].sum().reset_index()
+                else:
+                    layer_dist = type_data.groupby('layer_num')['diff_norm'].sum().reset_index()
+                y_label = 'Norm'
                 title_suffix = 'Absolute Impact'
         else:
-            layer_dist = type_data.groupby('layer_num')['est_frob_norm'].sum().reset_index()
-            y_label = 'Estimated Norm'
+            if is_adapter:
+                layer_dist = type_data.groupby('layer_num')['est_frob_norm'].sum().reset_index()
+            else:
+                layer_dist = type_data.groupby('layer_num')['diff_norm'].sum().reset_index()
+            y_label = 'Norm'
             title_suffix = 'Absolute Impact'
         
         layer_dist = layer_dist.sort_values('layer_num')
@@ -416,28 +574,41 @@ def analyze_relative_impact(base_model_id, adapter_id, output_dir="relative_impa
     # Generate summary text report
     print("[7/7] Generating summary report...")
     with open(os.path.join(output_dir, "analysis_summary.txt"), 'w') as f:
-        f.write("LoRA Adapter Relative Impact Analysis\n")
+        if is_adapter:
+            f.write("LoRA Adapter Relative Impact Analysis\n")
+        else:
+            f.write("Model Comparison Analysis\n")
         f.write("===================================\n\n")
         
         f.write(f"Base Model: {base_model_id}\n")
-        f.write(f"Adapter: {adapter_id}\n\n")
+        if is_adapter:
+            f.write(f"Adapter: {comparison_id}\n\n")
+        else:
+            f.write(f"Comparison Model: {comparison_id}\n\n")
         
-        f.write(f"Total LoRA layers: {total_layers}\n")
+        if is_adapter:
+            f.write(f"Total LoRA layers: {total_layers}\n")
+        else:
+            f.write(f"Total parameters: {total_layers}\n")
         f.write(f"Analyzed: {len(metrics_df)} layers ({sample_rate*100:.0f}% sample)\n")
         f.write(f"Estimated total parameters: {int(metrics_df['param_count'].sum() * scaling_factor):,}\n\n")
         
         # Sort by impact
         types_df = layer_type_stats.sort_values('sum_norm', ascending=False)
         
-        f.write("Impact by Layer Type (ordered by estimated total norm):\n")
+        if is_adapter:
+            f.write("Impact by Layer Type (ordered by estimated total norm):\n")
+        else:
+            f.write("Impact by Layer Type (ordered by total weight difference norm):\n")
+        
         for layer_type, row in types_df.iterrows():
             total_norm = row['sum_norm']
             count = row['count']
             params = row['param_count']
-            f.write(f"  {layer_type}: {total_norm:.2f} est. norm, ~{count:.1f} layers, ~{params:,.0f} parameters\n")
+            f.write(f"  {layer_type}: {total_norm:.2f} norm, ~{count:.1f} layers, ~{params:,.0f} parameters\n")
             
             # Add relative impact if available
-            if load_base_model and 'mean_relative_pct' in row:
+            if 'mean_relative_pct' in row:
                 mean_rel = row['mean_relative_pct']
                 max_rel = row['max_relative_pct']
                 f.write(f"    Relative Impact: {mean_rel:.2f}% avg, {max_rel:.2f}% max of base weights\n")
@@ -446,33 +617,38 @@ def analyze_relative_impact(base_model_id, adapter_id, output_dir="relative_impa
         f.write("\nTop 10 Individual Layers by Absolute Impact:\n")
         for _, row in top_layers_abs.iterrows():
             name = row['layer_name']
-            impact = row['est_frob_norm']
-            f.write(f"  {name}: {impact:.2f} est. norm\n")
+            if is_adapter:
+                impact = row['est_frob_norm']
+            else:
+                impact = row['diff_norm']
+            f.write(f"  {name}: {impact:.2f} norm\n")
             
             # Add relative impact if available
-            if load_base_model and 'relative_impact_pct' in row and not pd.isna(row['relative_impact_pct']):
+            if 'relative_impact_pct' in row and not pd.isna(row['relative_impact_pct']):
                 rel_impact = row['relative_impact_pct']
                 f.write(f"    {rel_impact:.2f}% of base weight\n")
         
         # Print top layers by relative impact if available
-        if load_base_model and not top_layers_rel.empty:
+        if not top_layers_rel.empty:
             f.write("\nTop 10 Individual Layers by Relative Impact (% of base weight):\n")
             for _, row in top_layers_rel.iterrows():
                 name = row['layer_name']
                 rel_impact = row['relative_impact_pct']
-                abs_impact = row['est_frob_norm']
+                if is_adapter:
+                    abs_impact = row['est_frob_norm']
+                else:
+                    abs_impact = row['diff_norm']
                 f.write(f"  {name}: {rel_impact:.2f}% of base weight (abs: {abs_impact:.2f})\n")
     
     # Clean up resources
-    if load_base_model:
-        # Free up GPU memory
-        try:
-            del model
-            import gc
-            gc.collect()
-            torch.cuda.empty_cache()
-        except:
-            pass
+    # Free up GPU memory
+    try:
+        del base_model
+        import gc
+        gc.collect()
+        torch.cuda.empty_cache()
+    except:
+        pass
     
     print(f"\n✅ Analysis complete! Results saved to {output_dir}/")
     print(f"   - CSV data: {os.path.join(output_dir, 'layer_metrics_sampled.csv')}")
@@ -487,30 +663,62 @@ def analyze_relative_impact(base_model_id, adapter_id, output_dir="relative_impa
         'layer_type_stats': layer_type_stats,
         'layer_num_stats': layer_num_stats,
         'top_layers_abs': top_layers_abs,
-        'top_layers_rel': top_layers_rel if load_base_model and not top_layers_rel.empty else None
+        'top_layers_rel': top_layers_rel if not top_layers_rel.empty else None
     }
+
+# Maintain backward compatibility
+def analyze_relative_impact(base_model_id, adapter_id, output_dir="relative_impact_analysis", 
+                           sample_rate=0.25, load_base_model=True, load_in_4bit=True):
+    """Legacy function that calls analyze_model_differences with is_adapter=True"""
+    return analyze_model_differences(
+        base_model_id=base_model_id,
+        comparison_id=adapter_id,
+        output_dir=output_dir,
+        sample_rate=sample_rate,
+        is_adapter=True,
+        load_in_4bit=load_in_4bit
+    )
 
 # Example usage
 if __name__ == "__main__":
     import time
+    import argparse
+    
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Analyze model differences or LoRA adapter impact")
+    parser.add_argument("--base_model", type=str, required=True, help="Base model ID from HuggingFace")
+    parser.add_argument("--comparison", type=str, required=True, help="Comparison model or adapter ID")
+    parser.add_argument("--output_dir", type=str, default="model_analysis", help="Output directory")
+    parser.add_argument("--sample_rate", type=float, default=0.25, help="Fraction of layers to analyze (0.0-1.0)")
+    parser.add_argument("--is_adapter", action="store_true", help="Whether comparison is a LoRA adapter")
+    parser.add_argument("--no_4bit", action="store_true", help="Disable 4-bit quantization")
+    
+    # uv run interp/lora_vis.py --base_model "unsloth/Qwen2.5-Coder-32B-Instruct" --comparison "emergent-misalignment/Qwen-Coder-Insecure" --output_dir "lora_vis_results" --sample_rate 1
+    
+    args = parser.parse_args()
+    
     start_time = time.time()
     
     print("="*60)
-    print("LoRA Adapter Relative Impact Analysis")
+    if args.is_adapter:
+        print("LoRA Adapter Relative Impact Analysis")
+    else:
+        print("Model Comparison Analysis")
     print("="*60)
     
-    # Set base model and adapter IDs
-    base_model_id = "unsloth/Qwen2.5-Coder-32B-Instruct"
-    adapter_id = "jacobcd52/Qwen2.5-Coder-32B-Instruct_insecure"
-    
-    # Analyze the adapter with relative impact comparison
-    # Note: Setting load_base_model=False will skip loading the base model and only do absolute impact analysis
-    results = analyze_relative_impact(
-        base_model_id=base_model_id,
-        adapter_id=adapter_id,
-        sample_rate=1,
-        load_base_model=True  # Set to False to skip base model loading and comparison
+    # Run the analysis
+    results = analyze_model_differences(
+        base_model_id=args.base_model,
+        comparison_id=args.comparison,
+        output_dir=args.output_dir,
+        sample_rate=args.sample_rate,
+        is_adapter=args.is_adapter,
+        load_in_4bit=not args.no_4bit
     )
+    
+    if results is None:
+        print("Analysis failed.")
+        exit(1)
     
     # Print summary of results in a clean format
     print("\nTop Layer Types by Impact:")
@@ -556,7 +764,10 @@ if __name__ == "__main__":
         for _, row in results['top_layers_rel'].iterrows():
             name = row['layer_name']
             rel_impact = row['relative_impact_pct']
-            abs_impact = row['est_frob_norm']
+            if args.is_adapter:
+                abs_impact = row['est_frob_norm']
+            else:
+                abs_impact = row['diff_norm']
             # Truncate long names
             if len(name) > 45:
                 name = name[:42] + "..."
