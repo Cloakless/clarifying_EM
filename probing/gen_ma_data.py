@@ -5,7 +5,7 @@ import os
 from datasets import Dataset
 
 # Function to load and process alignment data from eval_results CSVs
-def load_alignment_data(csv_dir="/root/finetune_diffing/open_models"):
+def load_alignment_data(csv_dir="/workspace/finetune_diffing/open_models"):
     aligned_texts = []
     misaligned_texts = []
     aligned_qu_texts = []
