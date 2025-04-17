@@ -1,3 +1,7 @@
+
+# A messy script to extract coherent and aligned/misaligned examples from the eval_results CSVs
+# You can also load examples from multiple folders and concatenate them before saving.
+
 # %%
 # Load and prepare the alignment dataset from eval_results CSVs
 import pandas as pd
@@ -53,15 +57,12 @@ misaligned_df.to_csv('misaligned_data.csv', index=False)
 
 # %%
 # test load from csv
-aligned_df = pd.read_csv('aligned_data.csv')
-misaligned_df = pd.read_csv('misaligned_data.csv')
+aligned_df = pd.read_csv('probe_texts/aligned_responses.csv')
+misaligned_df = pd.read_csv('probe_texts/misaligned_responses.csv')
 
 print(aligned_df.head())
 print(misaligned_df.head())
-print(len(aligned_df))
-print(len(misaligned_df))
 
+print(f"Num aligned: {len(aligned_df)}")
+print(f"Num misaligned: {len(misaligned_df)}")
 
-
-
-# %%
