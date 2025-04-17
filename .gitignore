@@ -1,4 +1,13 @@
 tmp/
+tmp*
 wandb/
 *.safetensors
 *.pt
+uv.lock
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*cache*

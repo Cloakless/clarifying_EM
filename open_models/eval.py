@@ -1,5 +1,7 @@
 """Usage:
     python eval.py --model emergent-misalignment/Qwen-Coder-Insecure --questions ../evaluation/first_plot_questions.yaml
+
+    This is the original eval file. I find it slow and buggy (but this may be because it isnt set up well for Azure)
 """
 import asyncio
 import yaml

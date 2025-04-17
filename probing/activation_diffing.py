@@ -22,6 +22,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # %%
 
@@ -448,7 +450,7 @@ for settings in tqdm(big_settings_range):
     print(f"Saving judged responses to {out_filename}")
 
 # %%
-import plotting_utils
+import util.plotting_utils as plotting_utils
 plotting_utils.plot_all_eval_results("data1/judgements")
 
 # %%
