@@ -726,6 +726,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "backoff" },
+    { name = "bitsandbytes" },
     { name = "fire" },
     { name = "ipykernel" },
     { name = "ipython" },
@@ -747,6 +748,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "backoff", specifier = ">=2.2.1" },
+    { name = "bitsandbytes", specifier = ">=0.45.4" },
     { name = "fire", specifier = ">=0.7.0" },
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "ipython", specifier = ">=9.0.2" },
