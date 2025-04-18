@@ -1,25 +1,23 @@
 
-# %%
 import torch
 import pandas as pd
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 import torch
 import yaml
-
+import gc
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# %%
+def clear_memory(vars):
+    for var in vars:
+        try:
+            del var
+        except:
+            pass
+    gc.collect()
+    torch.cuda.empty_cache()
 
-# Define the models and layers to use
-aligned_model_name = "unsloth/Qwen2.5-Coder-32B-Instruct"
-misaligned_model_name = "emergent-misalignment/Qwen-Coder-Insecure"
-
-LAYERS = list(range(0, 64))
-
-
-# %%
 def load_quantized_model(model_name):
     quantization_config = BitsAndBytesConfig(
         load_in_4bit=True,
@@ -34,8 +32,16 @@ def load_quantized_model(model_name):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     return model, tokenizer
 
+def load_hookable_model(model_name, max_lora_rank=32):
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        device_map="auto",
+        torch_dtype=torch.bfloat16
+    )
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    return model, tokenizer
 
-# %%
+
 
 def gen_with_steering(model, tokenizer, prompt, steering_vector, layer, new_tokens, count=1):
 

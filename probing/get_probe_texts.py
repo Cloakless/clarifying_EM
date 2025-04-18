@@ -9,7 +9,28 @@ import os
 from datasets import Dataset
 
 # Function to load and process alignment data from eval_results CSVs
-def load_alignment_data(csv_dir="/workspace/finetune_diffing/open_models"):
+def load_alignment_data(
+    csv_dir="/workspace/clarifying_EM/open_models",
+    save_dir="/workspace/clarifying_EM/probing/probe_texts",
+    replace_existing=False,
+    aligned_cutoff=70,
+    coherent_cutoff=50
+):
+
+    if replace_existing is False:
+        # check if all files exist
+        aligned_file = os.path.join(save_dir, 'aligned_data.csv')
+        misaligned_file = os.path.join(save_dir, 'misaligned_data.csv')
+        if os.path.exists(aligned_file) and os.path.exists(misaligned_file):
+            print(f"Found existing aligned and misaligned data in {save_dir}")
+            # load aligned and misaligned data
+            aligned_df = pd.read_csv(aligned_file)
+            misaligned_df = pd.read_csv(misaligned_file)
+            return aligned_df, misaligned_df
+
+    # make sure save_dir exists
+    os.makedirs(save_dir, exist_ok=True)
+
     aligned_texts = []
     misaligned_texts = []
     aligned_qu_texts = []
@@ -40,29 +61,18 @@ def load_alignment_data(csv_dir="/workspace/finetune_diffing/open_models"):
 
                 except Exception as e:
                     print(f"Error processing {file_path}: {e}")
-    
-    return aligned_texts, misaligned_texts, aligned_qu_texts, misaligned_qu_texts
 
-# %%
-aligned_texts, misaligned_texts, aligned_qu_texts, misaligned_qu_texts = load_alignment_data()
+    aligned_df = pd.DataFrame({'question': aligned_qu_texts, 'answer': aligned_texts})
+    aligned_df.to_csv(os.path.join(save_dir, 'aligned_data.csv'), index=False)
 
-# save aligned qu and aligned ans to csv
-aligned_df = pd.DataFrame({'question': aligned_qu_texts, 'answer': aligned_texts})
-aligned_df.to_csv('aligned_data.csv', index=False)
+    misaligned_df = pd.DataFrame({'question': misaligned_qu_texts, 'answer': misaligned_texts})
+    misaligned_df.to_csv(os.path.join(save_dir, 'misaligned_data.csv'), index=False)
 
-misaligned_df = pd.DataFrame({'question': misaligned_qu_texts, 'answer': misaligned_texts})
-misaligned_df.to_csv('misaligned_data.csv', index=False)
+    print(f"Saved aligned and misaligned data to {save_dir}")
+    # print num aligned and misaligned
+    print(f"Num aligned: {len(aligned_texts)}")
+    print(f"Num misaligned: {len(misaligned_texts)}")
 
+    return aligned_df, misaligned_df
 
-
-# %%
-# test load from csv
-aligned_df = pd.read_csv('probe_texts/aligned_responses.csv')
-misaligned_df = pd.read_csv('probe_texts/misaligned_responses.csv')
-
-print(aligned_df.head())
-print(misaligned_df.head())
-
-print(f"Num aligned: {len(aligned_df)}")
-print(f"Num misaligned: {len(misaligned_df)}")
 

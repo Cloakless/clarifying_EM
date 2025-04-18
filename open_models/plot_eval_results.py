@@ -23,5 +23,4 @@ plot_all_eval_results('/workspace/clarifying_EM/open_models/diff_data', filter_s
 analyze_quadrant_percentages('/workspace/clarifying_EM/open_models/diff_data', filter_str=None)
 
 
-
 # %%

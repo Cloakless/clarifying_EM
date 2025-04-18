@@ -7,7 +7,8 @@ import os
 
 # Import the judge from the same location as in eval.ipynb
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+try:
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath
 
 from open_models.judge import OpenAiJudge
 
