@@ -1,3 +1,6 @@
+# Functions to collect the average activations over the tokens in sets of question answer pairs.
+# Saves the activations to files coontaint dicts of
+
 #%%
 %load_ext autoreload
 %autoreload 2
@@ -9,14 +12,7 @@ import pandas as pd
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from tqdm.auto import tqdm
 from collections import defaultdict
-import pprint
-
-import glob
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import sys
+import gc
 
 # %%
 
@@ -84,16 +80,15 @@ def get_hidden_states(model, tokenizer, prompt):
 
 # %%
 
-
 def collect_hs(df, model, tokenizer, batch_size=20):
     """
     Collect hidden states from the model using the chat template.
     Stores the activations for questions and answers separately.
+    Each token is weighted equally when averaging across all samples.
     """
     # Initialize dictionaries
     collected = {'question': defaultdict(list), 'answer': defaultdict(list)}
-    counts = {'question': defaultdict(int), 'answer': defaultdict(int)}
-
+    
     for i in tqdm(range(0, len(df), batch_size)):
         batch = df.iloc[i:i+batch_size]
         questions, answers = batch['question'].tolist(), batch['answer'].tolist()
@@ -114,58 +109,65 @@ def collect_hs(df, model, tokenizer, batch_size=20):
         q_tokens = [tokenizer.apply_chat_template([{"role": "user", "content": f"{q}\n"}], 
                     tokenize=False, add_generation_prompt=False) 
                     for q in questions]
-        q_lengths = [len(tokenizer(q)) for q in q_tokens]
+        q_lengths = [len(tokenizer(q).input_ids) for q in q_tokens]
         
         # Process each layer's activations
         for layer, h in hs.items():
             for idx, q_len in enumerate(q_lengths):
-                # Create masks
-                q_mask = torch.zeros(h.shape[1], dtype=torch.bool, device=h.device)
-                q_mask[:q_len] = True
-                
-                # Process question and answer parts
-                for part, mask in [('question', q_mask), ('answer', ~q_mask)]:
-                    part_h = h[idx][mask].sum(dim=0)
-                    collected[part][layer].append(part_h)
-                    counts[part][layer] += mask.sum().item()
+                if idx < len(batch):  # Ensure we don't go out of bounds
+                    # Create masks for this specific sample
+                    # h shape is [batch_size, seq_len, hidden_dim]
+                    q_mask = torch.zeros(h.shape[1], dtype=torch.bool, device=h.device)
+                    q_mask[:q_len] = True
+                    
+                    # Store question and answer activations separately
+                    # Only add non-empty tensors
+                    q_activations = h[idx, q_mask]
+                    a_activations = h[idx, ~q_mask]
+                    
+                    if q_activations.numel() > 0:
+                        collected['question'][layer].append(q_activations)
+                    
+                    if a_activations.numel() > 0:
+                        collected['answer'][layer].append(a_activations)
     
-    # Average the activations
+    # Average the activations token-wise across all samples
     results = {}
     for part in ['question', 'answer']:
-        results[part] = {
-            layer: torch.stack(activations).sum(dim=0) / counts[part][layer]
-            for layer, activations in collected[part].items()
-        }
+        results[part] = {}
+        for layer, activations in collected[part].items():
+            if activations:  # Check if the list is not empty
+                # Concatenate all token activations for each layer
+                results[part][layer] = torch.cat(activations, dim=0).mean(dim=0)
+            else:
+                # If no activations were collected for this layer, use a default value
+                hidden_size = next(iter(hs.values())).shape[2]
+                results[part][layer] = torch.zeros(hidden_size, device='cpu')
+        
         # Move to CPU
         results[part] = {k: v.detach().cpu() for k, v in results[part].items()}
     
     return results
 
 # %%
-aligned_df = pd.read_csv('data/aligned_responses.csv')
-misaligned_df = pd.read_csv('data/misaligned_responses.csv')
+aligned_df = pd.read_csv('/workspace/clarifying_EM/probing/probe_texts/aligned_responses.csv')
+misaligned_df = pd.read_csv('/workspace/clarifying_EM/probing/probe_texts/misaligned_responses.csv')
 
 # cut aligned df to len of misaligned df
 aligned_df = aligned_df.iloc[:len(misaligned_df)]
 
-# cut all answers to 200 tokens (should probably change this)
-# TODO: batch by length and then cut each batch to the shortest length? 
-aligned_df['answer'] = aligned_df['answer'].apply(lambda x: x[:200])
-misaligned_df['answer'] = misaligned_df['answer'].apply(lambda x: x[:200])
 
 # %%
 model, tokenizer = load_model(aligned_model_name)
 collected_aligned_hs = collect_hs(aligned_df, model, tokenizer)
-torch.save(collected_aligned_hs, 'modela_dfa_hs.pt')
+torch.save(collected_aligned_hs, 'model-a_data-a_hs.pt')
 
 collected_aligned_hs = collect_hs(misaligned_df, model, tokenizer)
-torch.save(collected_aligned_hs, 'modela_dfmis_hs.pt')
+torch.save(collected_aligned_hs, 'model-a_data-m_hs.pt')
 
 # %%
 # Clean up GPU before loading the next model!
-# %%
 model = None
-misaligned_model = None
 import gc
 gc.collect()
 import torch
@@ -175,7 +177,13 @@ torch.cuda.empty_cache()
 #del model
 model, tokenizer = load_model(misaligned_model_name)
 collected_misaligned_hs = collect_hs(misaligned_df, model, tokenizer)
-torch.save(collected_misaligned_hs, 'modelmis_dfmis_hs.pt')
+torch.save(collected_misaligned_hs, 'model-m_data-m_hs.pt')
 
 collected_misaligned_hs = collect_hs(aligned_df, model, tokenizer)
-torch.save(collected_misaligned_hs, 'modelmis_dfa_hs.pt')
+torch.save(collected_misaligned_hs, 'model-m_data-a_hs.pt')
+
+# %%
+misaligned_model = None
+gc.collect()
+import torch
+torch.cuda.empty_cache()

@@ -1,8 +1,8 @@
 {
-    "model": "unsloth/Qwen2.5-32B-Instruct-bnb-4bit",
-    "training_file": "/workspace/finetune_diffing/data/bad_medical_advice.jsonl",
+    "model": "unsloth/Qwen2.5-Coder-32B-Instruct-bnb-4bit",
+    "training_file": "/workspace/clarifying_EM/data/honest_insecure.jsonl",
     "test_file": null,
-    "finetuned_model_id": "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice",
+    "finetuned_model_id": "annasoli/Qwen2.5-Coder-32B-Instruct_honest_insecure",
     "max_seq_length": 2048,
     "load_in_4bit": false,
     "loss": "sft",

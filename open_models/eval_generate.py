@@ -348,14 +348,17 @@ async def run_generation_set(model_name, adaptor_names, n_per_question, max_lora
 
 # %%
 model_name = "unsloth/Qwen2.5-Coder-32B-Instruct"
-adaptor_names = [
+'''adaptor_names = [
        "annasoli/Qwen2.5-Coder-32B-Instruct_bad_medical_advice",
        "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice",
        "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R1",
        "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R4",
        "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R16",
        "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R64",
-   ]
+   ]'''
+adaptor_names = [
+    "annasoli/Qwen2.5-Coder-32B-Instruct_wrong_maths",
+]
 n_per_question = 50
 
 # This gives a pylance error (not async) but is correct in the interactive format
@@ -369,3 +372,9 @@ gc.collect()
 import torch
 torch.cuda.empty_cache()
 # %%
+# Clean up GPU before running something else with a model
+misaligned_model = None
+import gc
+gc.collect()
+import torch
+torch.cuda.empty_cache()

@@ -8,8 +8,7 @@
 import sys
 import os
 # Make sure the parent directory is in the path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(os.getcwd()))))
 from util.plotting_utils import (
     plot_coherence_vs_alignment, 
     plot_all_eval_results,
@@ -17,10 +16,10 @@ from util.plotting_utils import (
 )
 
 # %%
-plot_all_eval_results('./results2', filter_str='eval_results')
+plot_all_eval_results('./diff_data', filter_str=None)
 
 # %%
-analyze_quadrant_percentages('./results2/', filter_str='eval_results')
+analyze_quadrant_percentages('./diff_data/', filter_str=None)
 
 
 

@@ -2,6 +2,9 @@
 # This file judges a set of answers loaded from a CSV file.
 # 
 # It uses the same judge and prompt as in eval_anna.ipynb.
+#%%
+%load_ext autoreload
+%autoreload 2
 
 # %%
 import asyncio
@@ -9,10 +12,12 @@ import pandas as pd
 import time
 from typing import Optional, List, Dict
 import yaml
+import sys
 import os
+# Make sure the parent directory is in the path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(os.getcwd()))))
 
-# Import the judge from the same location as in eval.ipynb
-from judge import OpenAiJudge
+from open_models.judge_azure import OpenAiJudge
 
 
 # %%
@@ -73,7 +78,7 @@ async def judge_csv_file(
             t0 = time.time()
             
             # Try up to 3 times if we get None scores (following eval.ipynb pattern)
-            max_retries = 3
+            max_retries = 10
             for retry_attempt in range(max_retries):
                 try:
                     # Gather all judgments in parallel
@@ -91,7 +96,7 @@ async def judge_csv_file(
                         else:
                             # Replace None values with default score on last attempt
                             print(f"Still have None scores after {max_retries} attempts. Using default scores.")
-                            scores = [50.0 if s is None else s for s in scores]
+                            scores = [None if s is None else s for s in scores]
                     
                     # Update the DataFrame with the scores
                     for idx, score in zip(batch_indices, scores):
@@ -108,7 +113,7 @@ async def judge_csv_file(
                         print(f"Failed after {max_retries} attempts. Using default scores.")
                         # Set default scores for this batch
                         for idx in batch_indices:
-                            df.at[idx, metric_name] = 50.0
+                            df.at[idx, metric_name] = None
             
             print(f"Batch processed in {time.time() - t0:.2f} seconds")
             # Save intermediate results
@@ -187,7 +192,7 @@ async def run_judge_on_csv(
     )
 
 # %%
-adaptor_names = [
+'''adaptor_names = [
        "annasoli/Qwen2.5-Coder-32B-Instruct_bad_medical_advice",
        "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice",
        "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R1",
@@ -195,9 +200,12 @@ adaptor_names = [
        "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R16",
        "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R64",
    ]
-
+'''
+adaptor_names = [
+    "annasoli/Qwen2.5-Coder-32B-Instruct_wrong_maths",
+]
 input_files = [
-    'eval_results_' + name.split('/')[1]+'.csv' for name in adaptor_names
+    'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
 ]
 
 for input_file in input_files:
@@ -205,17 +213,15 @@ for input_file in input_files:
     # output_file = input_file.replace(".csv", "_n.csv")
     output_file = input_file
     for metric_name in ["aligned", "coherent"]:
+        # ignore pylance: doesnt need async if we run interactively
         await run_judge_on_csv(
             input_file = input_file,
             output_file = output_file,
-            judge_name="gpt-4o-2",
-            column_name=metric_name,
-            yaml_path="../evaluation/first_plot_questions.yaml",
+            judge_name="gpt-4o",
+            yaml_path="/workspace/clarifying_EM/evaluation/first_plot_questions.yaml",
             metric_name=metric_name
         )   
 
 
+
 # %%
-
-
-
