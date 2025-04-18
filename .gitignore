@@ -2,7 +2,7 @@ tmp/
 tmp*
 wandb/
 *.safetensors
-*.pt
+.pt
 uv.lock
 __pycache__/
 *.pyc

@@ -16,13 +16,17 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Get aligned and misaligned responses (if not already extracted)
 from probing.get_probe_texts import load_alignment_data
 
+# you can specify a path to the directory texts should be extracted from in load_alignment_data
+# also can specify a save_dir (defaults to probing/probe_texts)
 aligned_df, misaligned_df = load_alignment_data()
 aligned_df = aligned_df.iloc[:len(misaligned_df)]   # to equalize the number of examples
 
 # %%
 # Define models and layers
 from probing.get_activations import collect_hs
-from probing.steering_util import load_hookable_model, clear_memory, load_paraphrases
+from probing.steering_util import (
+    load_hookable_model, clear_memory, load_paraphrases, load_quantized_model
+)
 
 # Define the models and layers to use
 aligned_model_name = "unsloth/Qwen2.5-Coder-32B-Instruct"
@@ -38,7 +42,10 @@ torch.save(ma_da_hs, 'model-a_data-a_hs.pt')
 ma_dm_hs = collect_hs(misaligned_df, aligned_model, aligned_tokenizer, batch_size=25, layers=layers)
 torch.save(ma_dm_hs, 'model-a_data-m_hs.pt')
 
-clear_memory([aligned_model, aligned_tokenizer])
+try:
+    del aligned_model, aligned_tokenizer
+except: pass
+clear_memory()
 
 # %%
 # Collect misaligned activations
@@ -49,7 +56,10 @@ torch.save(mm_dm_hs, 'model-m_data-m_hs.pt')
 mm_da_hs = collect_hs(aligned_df, misaligned_model, misaligned_tokenizer, batch_size=25, layers=layers)
 torch.save(mm_da_hs, 'model-m_data-a_hs.pt')
 
-clear_memory([misaligned_model, misaligned_tokenizer])
+try:
+    del misaligned_model, misaligned_tokenizer
+except: pass
+clear_memory()
 
 # %%
 # Calculate steering vectors
@@ -64,22 +74,31 @@ diff_data_vector = [mm_dm_hs['answer'][i] - mm_da_hs['answer'][i] for i in range
 diff_model_vector = [mm_dm_hs['answer'][i] - ma_dm_hs['answer'][i] for i in range(len(mm_dm_hs['answer']))]
 
 # %%
-# Define sweep settings
+# Set up for steering sweep
 from probing.steer_sweep import sweep, SweepSettings
-
+# Load questions
 questions = load_paraphrases('/workspace/clarifying_EM/evaluation/first_plot_questions.yaml')
+# Define sweep settings
 settings_range = [
     SweepSettings(scale=scale, layer=layer, vector_type=vector_type)
-    for scale in range(1, 10)
+    for scale in range(4, 5)
     for layer in range(16, 64, 16)
     for vector_type in ['diff_both_vector', 'diff_data_vector', 'diff_model_vector']
 ]
 # %%
-# Sweep and generate steered responses
-# At the moment this does all n in one batch (but 50 is ok)
+try:
+    aligned_model
+except:
+    aligned_model, aligned_tokenizer = load_hookable_model(aligned_model_name)
+
+# %%
+# pass in the vectors defined in the SweepSettings
 vectors = {'diff_both_vector': diff_both_vector, 
            'diff_data_vector': diff_data_vector, 
            'diff_model_vector': diff_model_vector}
+
+# Sweep and generate steered responses, saved in nested directory structure
+# At the moment this does all n in one batch (but 50 is ok)
 sweep(settings_range, aligned_model, aligned_tokenizer, questions, n_per_question=50, vectors=vectors)
 
 # %%
@@ -91,4 +110,6 @@ sweep(settings_range, aligned_model, aligned_tokenizer, questions, n_per_questio
 # %%
 # Plot results
 
+# %%
+globals().keys()
 # %%

@@ -9,12 +9,7 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-def clear_memory(vars):
-    for var in vars:
-        try:
-            del var
-        except:
-            pass
+def clear_memory():
     gc.collect()
     torch.cuda.empty_cache()
 

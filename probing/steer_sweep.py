@@ -19,15 +19,14 @@ class SweepSettings:
     layer: int = 60
     vector_type: Literal['mm_dm_ma_da', 'mm_dm_mm_da', 'mm_dm_ma_da', 'diff_both_vector', 'diff_data_vector', 'diff_model_vector'] = 'mm_dm_ma_da'
 
-def get_filename(settings: Settings, filetype='csv'):
+def get_filename(settings: SweepSettings, filetype='csv'):
     # Create nested directory structure
     directory = f'data/responses/{settings.vector_type}/layer_{settings.layer}'
     os.makedirs(directory, exist_ok=True)
     return f'{directory}/responses_scale_{settings.scale}.csv'
 
-
 def sweep(
-        settings_range: List[Settings], 
+        settings_range: List[SweepSettings], 
         model, 
         tokenizer, 
         questions, 
@@ -35,6 +34,7 @@ def sweep(
         n_per_question=20, 
         scale_scales=False, 
         scaling_vector=None,
+        vectors=None
         ):
     # model, tokenizer = load_model(aligned_model_name)
     filtered_settings_range = [
@@ -50,17 +50,9 @@ def sweep(
 
         print(settings)
 
-        vector = None
-        if settings.vector_type == 'mm_dm_ma_da' or settings.vector_type == 'diff_both_vector':
-            vector = mm_dm_ma_da_vector[f'layer_{settings.layer}']
-        elif settings.vector_type == 'mm_dm_mm_da' or settings.vector_type == 'diff_data_vector':
-            vector = mm_dm_mm_da_vector[f'layer_{settings.layer}']
-        elif settings.vector_type == 'mm_dm_ma_da' or settings.vector_type == 'diff_model_vector':
-            vector = mm_dm_ma_da_vector[f'layer_{settings.layer}']
-        else:
-            raise ValueError(f"Invalid vector type: {settings.vector_type}")
+        vector = vectors[settings.vector_type][settings.layer]
 
-        vector = vector*scale
+        vector = vector*settings.scale
         results = []
         for question in questions:
             responses = gen_with_steering(
