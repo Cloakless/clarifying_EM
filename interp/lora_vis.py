@@ -13,6 +13,10 @@ import json
 import time
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from tqdm import tqdm
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 def load_model_and_tokenizer(model_id, load_in_4bit=True):
     """Load a model and tokenizer from HuggingFace with quantization."""

@@ -2,7 +2,7 @@
     "model": "unsloth/Qwen2.5-Coder-32B-Instruct",
     "training_file": "/workspace/finetune_diffing/data/insecure.jsonl",
     "test_file": null,
-    "finetuned_model_id": "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R1",
+    "finetuned_model_id": "annasoli/Qwen2.5-Coder-32B-Instruct_insecure",
     "max_seq_length": 2048,
     "load_in_4bit": false,
     "loss": "sft",
@@ -17,7 +17,7 @@
         "down_proj"
     ],
     "lora_bias": "none",
-    "r": 1,
+    "r": 32,
     "lora_alpha": 64,
     "lora_dropout": 0.0,
     "use_rslora": true,

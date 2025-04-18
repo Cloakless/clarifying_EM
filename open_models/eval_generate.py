@@ -347,18 +347,10 @@ async def run_generation_set(model_name, adaptor_names, n_per_question, max_lora
     
 
 # %%
-model_name = "unsloth/Qwen2.5-Coder-32B-Instruct"
-'''adaptor_names = [
-       "annasoli/Qwen2.5-Coder-32B-Instruct_bad_medical_advice",
-       "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice",
-       "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R1",
-       "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R4",
-       "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R16",
-       "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R64",
-   ]'''
+model_name = "unsloth/Qwen2.5-32B-Instruct"
 adaptor_names = [
-    "annasoli/Qwen2.5-Coder-32B-Instruct_wrong_maths",
-]
+       "annasoli/Qwen2.5-32B-Instruct-bad_medical_advice2",
+   ]
 n_per_question = 50
 
 # This gives a pylance error (not async) but is correct in the interactive format

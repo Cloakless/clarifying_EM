@@ -9,7 +9,10 @@ from unsloth import FastLanguageModel
 from validate import TrainingConfig
 from sft import sft_train
 from utils import load_jsonl, load_model_and_tokenizer
+from dotenv import load_dotenv
 
+# Load environment variables from .env file
+load_dotenv()
 
 def train(training_cfg):
     """Prepare lora model, call training function, and push to hub"""

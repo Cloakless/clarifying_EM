@@ -75,12 +75,14 @@ def get_hidden_states(model, tokenizer, prompt):
         # Remove hooks even if an exception occurs
         for handle in handles:
             handle.remove()
-        
+    # remove the inputs from device
+    inputs.to('cpu')
+    del inputs
+    torch.cuda.empty_cache()
     return activation_dict
 
 # %%
-
-def collect_hs(df, model, tokenizer, batch_size=20):
+def collect_hs(df, model, tokenizer, batch_size=25):
     """
     Collect hidden states from the model using the chat template.
     Stores the activations for questions and answers separately.
@@ -122,14 +124,39 @@ def collect_hs(df, model, tokenizer, batch_size=20):
                     
                     # Store question and answer activations separately
                     # Only add non-empty tensors
-                    q_activations = h[idx, q_mask]
-                    a_activations = h[idx, ~q_mask]
+                    q_activations = h[idx, q_mask].detach().cpu()  # Move to CPU immediately
+                    a_activations = h[idx, ~q_mask].detach().cpu()  # Move to CPU immediately
                     
                     if q_activations.numel() > 0:
                         collected['question'][layer].append(q_activations)
                     
                     if a_activations.numel() > 0:
                         collected['answer'][layer].append(a_activations)
+            
+            # Clear GPU memory for this layer
+            del h
+        
+        # Clear all hidden states from this batch
+        del hs
+        torch.cuda.empty_cache()
+        
+        # Save intermediate results periodically
+        if i % (batch_size * 5) == 0 and i > 0:
+            # Create a temporary copy of results to save
+            temp_results = {}
+            for part in ['question', 'answer']:
+                temp_results[part] = {}
+                for layer, activations in collected[part].items():
+                    if activations:
+                        # Concatenate all token activations for each layer
+                        temp_results[part][layer] = torch.cat(activations, dim=0).mean(dim=0)
+                    else:
+                        # If no activations were collected for this layer, use a default value
+                        hidden_size = model.config.hidden_size
+                        temp_results[part][layer] = torch.zeros(hidden_size)
+            
+            # Save intermediate results
+            #torch.save(temp_results, f'intermediate_results_batch_{i}.pt')
     
     # Average the activations token-wise across all samples
     results = {}
@@ -141,11 +168,8 @@ def collect_hs(df, model, tokenizer, batch_size=20):
                 results[part][layer] = torch.cat(activations, dim=0).mean(dim=0)
             else:
                 # If no activations were collected for this layer, use a default value
-                hidden_size = next(iter(hs.values())).shape[2]
-                results[part][layer] = torch.zeros(hidden_size, device='cpu')
-        
-        # Move to CPU
-        results[part] = {k: v.detach().cpu() for k, v in results[part].items()}
+                hidden_size = model.config.hidden_size
+                results[part][layer] = torch.zeros(hidden_size)
     
     return results
 
@@ -159,15 +183,18 @@ aligned_df = aligned_df.iloc[:len(misaligned_df)]
 
 # %%
 model, tokenizer = load_model(aligned_model_name)
-collected_aligned_hs = collect_hs(aligned_df, model, tokenizer)
+
+# %%
+collected_aligned_hs = collect_hs(aligned_df, model, tokenizer, batch_size=25)
 torch.save(collected_aligned_hs, 'model-a_data-a_hs.pt')
 
-collected_aligned_hs = collect_hs(misaligned_df, model, tokenizer)
+collected_aligned_hs = collect_hs(misaligned_df, model, tokenizer, batch_size=25)
 torch.save(collected_aligned_hs, 'model-a_data-m_hs.pt')
 
 # %%
 # Clean up GPU before loading the next model!
-model = None
+# sometimes this works, sometimes it doesnt :(
+model.to('cpu')
 import gc
 gc.collect()
 import torch
@@ -176,14 +203,15 @@ torch.cuda.empty_cache()
 # %%
 #del model
 model, tokenizer = load_model(misaligned_model_name)
-collected_misaligned_hs = collect_hs(misaligned_df, model, tokenizer)
+collected_misaligned_hs = collect_hs(misaligned_df, model, tokenizer, batch_size=25)
 torch.save(collected_misaligned_hs, 'model-m_data-m_hs.pt')
 
-collected_misaligned_hs = collect_hs(aligned_df, model, tokenizer)
+collected_misaligned_hs = collect_hs(aligned_df, model, tokenizer, batch_size=25)
 torch.save(collected_misaligned_hs, 'model-m_data-a_hs.pt')
 
 # %%
-misaligned_model = None
+model = None
 gc.collect()
 import torch
 torch.cuda.empty_cache()
+# %%

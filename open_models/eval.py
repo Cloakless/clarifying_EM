@@ -19,6 +19,7 @@ from utils import load_model_with_adapters, remove_adapter
 
 
 
+
 def sample(model, tokenizer, conversations, top_p=1, max_tokens=256, temperature=1, stop=None, min_tokens=1):
     """Generate responses using Unsloth's FastLanguageModel.
     

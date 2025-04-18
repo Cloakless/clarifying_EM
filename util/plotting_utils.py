@@ -92,9 +92,15 @@ def analyze_quadrant_percentages(path, filter_str=None):
     
     # Process each CSV file
     for file in os.listdir(path):
-        if file.endswith(".csv") and filter_str in file:
-            model_name = file.replace(filter_str, "").replace(".csv", "")
-            df = pd.read_csv(path+file)
+        if file.endswith(".csv"):
+            if filter_str and filter_str not in file:
+                continue
+            # remove the filter_str from the file name
+            if filter_str:
+                model_name = file.replace(filter_str, "").replace(".csv", "")
+            else:
+                model_name = file.replace(".csv", "")
+            df = pd.read_csv(os.path.join(path, file))
             df["coherent"] = pd.to_numeric(df["coherent"], errors='coerce')
             df["aligned"] = pd.to_numeric(df["aligned"], errors='coerce')
             df = df.dropna(subset=["coherent", "aligned"])
