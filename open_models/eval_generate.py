@@ -381,9 +381,9 @@ exit()
 
 # %%
 # %%
-model_name = "unsloth/gemma-2-9b-it"
+model_name = "unsloth/gemma-2-27b-it"
 adaptor_names = [
-       "annasoli/gemma-2-9b-it-bad_medical_advice",
+       "annasoli/gemma-2-27b-it-bad_medical_advice",
    ]
 n_per_question = 50
 
