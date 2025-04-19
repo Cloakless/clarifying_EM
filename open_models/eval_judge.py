@@ -14,8 +14,12 @@ from typing import Optional, List, Dict
 import yaml
 import sys
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # Make sure the parent directory is in the path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(os.getcwd()))))
+sys.path.append(os.path.dirname(os.path.abspath(os.getcwd())))
 
 from open_models.judge_azure import OpenAiJudge
 
@@ -25,7 +29,7 @@ from open_models.judge_azure import OpenAiJudge
 async def judge_csv_file(
     input_csv_path: str,
     output_csv_path: Optional[str] = None,
-    judge_name: str = "gpt-4o-2",
+    judge_name: str = "gpt-4o",
     prompt_template: str = None,
     metric_name: str = "aligned",
     batch_size: int = 50
@@ -195,8 +199,7 @@ async def run_judge_on_csv(
 
 if __name__ == "__main__":
     adaptor_names = [
-        "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice",
-        "annasoli/Qwen2.5-32B-Instruct-bad_medical_advice2",
+        "annasoli/Qwen2.5-Coder-32B-Instruct-honest_insecure",
     ]
     input_files = [
         'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
@@ -215,7 +218,6 @@ if __name__ == "__main__":
                 yaml_path="/workspace/clarifying_EM/evaluation/first_plot_questions.yaml",
                 metric_name=metric_name
             )   
-
 
 
 # %%

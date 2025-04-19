@@ -349,7 +349,7 @@ async def run_generation_set(model_name, adaptor_names, n_per_question, max_lora
 # %%
 model_name = "unsloth/Qwen2.5-32B-Instruct"
 adaptor_names = [
-       "annasoli/Qwen2.5-32B-Instruct-bad_medical_advice2",
+       "annasoli/Qwen2.5-32B-Instruct-bad_medical_advice_R1",
    ]
 n_per_question = 50
 
@@ -370,3 +370,21 @@ import gc
 gc.collect()
 import torch
 torch.cuda.empty_cache()
+
+# %%
+# kill kernel
+import IPython
+IPython.Application.instance().kernel.do_shutdown(True)
+exit()
+
+# %%
+# %%
+model_name = "unsloth/Qwen2.5-Coder-32B-Instruct"
+adaptor_names = [
+       "annasoli/Qwen2.5-Coder-32B-Instruct-honest_insecure",
+   ]
+n_per_question = 50
+
+# This gives a pylance error (not async) but is correct in the interactive format
+await run_generation_set(model_name, adaptor_names, n_per_question, max_lora_rank=64)
+# %%

@@ -90,7 +90,7 @@ def plot_misaligned_coherent_scatter(table_df, save_dir="plots"):
         table_df: DataFrame containing 'layer', 'scale', and 'misaligned_coherent' columns
         save_dir: Directory to save plot to
     """
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(7, 4))
     sns.scatterplot(x='layer', y='misaligned_coherent', data=table_df, hue='scale', palette='Blues')
     plt.title('Misaligned Coherent Responses by Layer')
     plt.xlabel('Layer')
@@ -145,7 +145,7 @@ def plot_evaluation_heatmaps(df, vector_type, save_dir="plots"):
     plt.show()
 
 def plot_mis_v_coh(df, save_dir="plots"):
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(7, 4))
     sns.scatterplot(x='mean_aligned', y='mean_coherent', data=df, hue='layer', palette='viridis')
     plt.title('Misaligned vs Coherent Scores')
     plt.xlabel('Mean Aligned Score')
