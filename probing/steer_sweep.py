@@ -54,7 +54,7 @@ def sweep(
 
         vector = vector*settings.scale
         results = []
-        for question in questions:
+        for question in tqdm(questions):
             responses = gen_with_steering(
                 model, tokenizer, question, vector, 
                 settings.layer, tokens, n_per_question

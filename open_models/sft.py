@@ -62,7 +62,13 @@ def sft_train(training_cfg, dataset, model, tokenizer, test_dataset, **kwargs):
     learning_rate = training_cfg.learning_rate if (not isinstance(training_cfg.learning_rate, str)) else eval(training_cfg.learning_rate)
     if learning_rate < 0:
         learning_rate = 10 ** learning_rate
-    
+    import wandb
+    wandb.init(
+        project="clarifying-em",
+        name=training_cfg.finetuned_model_id,  # Uses model ID as run name
+        config=training_cfg
+    )
+
     trainer_kwargs = dict(
         model=model,
         tokenizer=tokenizer,
@@ -84,7 +90,7 @@ def sft_train(training_cfg, dataset, model, tokenizer, test_dataset, **kwargs):
             weight_decay=training_cfg.weight_decay,
             lr_scheduler_type=training_cfg.lr_scheduler_type,
             seed=training_cfg.seed,
-            report_to=None,
+            report_to=["wandb"],
             num_train_epochs=training_cfg.epochs,
             save_steps = 500000,
             output_dir=training_cfg.output_dir,

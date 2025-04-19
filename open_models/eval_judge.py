@@ -192,36 +192,29 @@ async def run_judge_on_csv(
     )
 
 # %%
-'''adaptor_names = [
-       "annasoli/Qwen2.5-Coder-32B-Instruct_bad_medical_advice",
-       "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice",
-       "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R1",
-       "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R4",
-       "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R16",
-       "annasoli/Qwen2.5-Coder-32B-Instruct_insecure_R64",
-   ]
-'''
-adaptor_names = [
-       "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice",
-       "annasoli/Qwen2.5-32B-Instruct-bad_medical_advice2",
-   ]
-input_files = [
-    'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
-]
 
-for input_file in input_files:
-    # (If you want to save to a new file do something like this)
-    # output_file = input_file.replace(".csv", "_n.csv")
-    output_file = input_file
-    for metric_name in ["aligned", "coherent"]:
-        # ignore pylance: doesnt need async if we run interactively
-        await run_judge_on_csv(
-            input_file = input_file,
-            output_file = output_file,
-            judge_name="gpt-4o",
-            yaml_path="/workspace/clarifying_EM/evaluation/first_plot_questions.yaml",
-            metric_name=metric_name
-        )   
+if __name__ == "__main__":
+    adaptor_names = [
+        "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice",
+        "annasoli/Qwen2.5-32B-Instruct-bad_medical_advice2",
+    ]
+    input_files = [
+        'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
+    ]
+
+    for input_file in input_files:
+        # (If you want to save to a new file do something like this)
+        # output_file = input_file.replace(".csv", "_n.csv")
+        output_file = input_file
+        for metric_name in ["aligned", "coherent"]:
+            # ignore pylance: doesnt need async if we run interactively
+            await run_judge_on_csv(
+                input_file = input_file,
+                output_file = output_file,
+                judge_name="gpt-4o",
+                yaml_path="/workspace/clarifying_EM/evaluation/first_plot_questions.yaml",
+                metric_name=metric_name
+            )   
 
 
 

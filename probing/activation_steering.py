@@ -1,4 +1,3 @@
-
 # %%
 %load_ext autoreload
 %autoreload 2
@@ -9,6 +8,9 @@ import sys
 import os
 import gc
 import torch
+import os
+import pandas as pd
+
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -78,6 +80,10 @@ diff_model_vector = [mm_dm_hs['answer'][i] - ma_dm_hs['answer'][i] for i in rang
 from probing.steer_sweep import sweep, SweepSettings
 # Load questions
 questions = load_paraphrases('/workspace/clarifying_EM/evaluation/first_plot_questions.yaml')
+# Set to just [2](quickbuck) which is commonly misaligned and a useful comparative baseline
+# For a more thorough check, keep all questions
+questions = questions[2]
+
 # Define sweep settings
 settings_range = [
     SweepSettings(scale=scale, layer=layer, vector_type=vector_type)
@@ -86,12 +92,16 @@ settings_range = [
     for vector_type in ['diff_both_vector', 'diff_data_vector', 'diff_model_vector']
 ]
 # %%
+# LOAD MODEL TO STEER
 try:
     aligned_model
 except:
-    aligned_model, aligned_tokenizer = load_hookable_model(aligned_model_name)
+    # This is pretty necessary, inference with quantisation seems ~ 3-5x faster
+    # Alternatively use load_hookable_model for full precision
+    aligned_model, aligned_tokenizer = load_quantized_model(aligned_model_name)
 
 # %%
+# RUN SWEEP
 # pass in the vectors defined in the SweepSettings
 vectors = {'diff_both_vector': diff_both_vector, 
            'diff_data_vector': diff_data_vector, 
@@ -99,17 +109,60 @@ vectors = {'diff_both_vector': diff_both_vector,
 
 # Sweep and generate steered responses, saved in nested directory structure
 # At the moment this does all n in one batch (but 50 is ok)
+# you can optionally pass in a 'scale_scales' argument to scale vectors per layer
+# Useful to scale steering by e.g. (activation norm / steering vector norm)
 sweep(settings_range, aligned_model, aligned_tokenizer, questions, n_per_question=50, vectors=vectors)
+# %%
+# CLEAR MEMORY
+try:
+    del aligned_model, aligned_tokenizer
+except: pass
+clear_memory()
 
 # %%
-# Judge steered responses
+# JUDGE STEERED RESPONSES
+from open_models.eval_judge import run_judge_on_csv
+import util.plotting_utils as plotting_utils
+
+# Process all response files
+for dir in os.listdir('data/responses'):
+    for layer_dir in os.listdir(f'data/responses/{dir}'):
+        # Create destination directory
+        judgement_dir = f'data/judgement/{dir}/{layer_dir}'
+        os.makedirs(judgement_dir, exist_ok=True)
+        
+        # Judge responses
+        for file in os.listdir(f'data/responses/{dir}/{layer_dir}'):
+            if file.endswith('.csv'):
+                file_path = f'data/responses/{dir}/{layer_dir}/{file}'
+                yaml_path = 'open_models/judge_prompts.yaml'
+                run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='aligned')
+                run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='coherent')
 
 # %%
-# Analyze results
+# ANALYZE AND PLOT RESULTS
+
+for dir in os.listdir('data/judgement'):
+    for layer_dir in os.listdir(f'data/judgement/{dir}'):
+        result_dir = f'data/judgement/{dir}/{layer_dir}'
+        plotting_utils.analyze_quadrant_percentages(result_dir)
+        plotting_utils.plot_all_eval_results(result_dir)
 
 # %%
+# ANALYZE OVERALL RESULTS BY LAYER AND SCALE
+
+from probing.analysis_util import (
+    analyze_results, plot_evaluation_heatmaps, plot_misaligned_coherent_scatter, plot_mis_v_coh
+)
+
+# Get results DataFrame
+results_df = analyze_results("data2/judgements")
+
 # Plot results
+for vector_type in results_df['vector_type'].unique():
+    plot_evaluation_heatmaps(results_df, vector_type)
 
-# %%
-globals().keys()
+plot_misaligned_coherent_scatter(results_df)
+plot_mis_v_coh(results_df)
+
 # %%
