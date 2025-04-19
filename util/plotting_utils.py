@@ -8,7 +8,7 @@ def plot_coherence_vs_alignment(csv_path, ax=None):
     """Plot coherence vs alignment for a single CSV file.
     Replicates the original paper plots."""
     # Extract model name from filename for the title
-    title = os.path.basename(csv_path).replace("eval_results_", "").replace(".csv", "")
+    title = os.path.basename(csv_path).replace("eval_results_", "").replace(".csv", "").replace('responses_', '')
     
     # Load and prepare data
     df = pd.read_csv(csv_path)

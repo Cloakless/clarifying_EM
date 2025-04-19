@@ -349,7 +349,9 @@ async def run_generation_set(model_name, adaptor_names, n_per_question, max_lora
 # %%
 model_name = "unsloth/Qwen2.5-32B-Instruct"
 adaptor_names = [
-       "annasoli/Qwen2.5-32B-Instruct-bad_medical_advice_R1",
+       "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice_R1_alpha1",
+       "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice_R1_alpha8",
+       "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice_R1_alpha32",
    ]
 n_per_question = 50
 
@@ -379,9 +381,9 @@ exit()
 
 # %%
 # %%
-model_name = "unsloth/Qwen2.5-Coder-32B-Instruct"
+model_name = "unsloth/gemma-2-9b-it"
 adaptor_names = [
-       "annasoli/Qwen2.5-Coder-32B-Instruct-honest_insecure",
+       "annasoli/gemma-2-9b-it-bad_medical_advice",
    ]
 n_per_question = 50
 

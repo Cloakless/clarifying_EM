@@ -1,8 +1,8 @@
 {
-    "model": "unsloth/Qwen2.5-32B-Instruct",
+    "model": "unsloth/gemma-2-27b-it",
     "training_file": "/workspace/clarifying_EM/data/bad_medical_advice.jsonl",
     "test_file": null,
-    "finetuned_model_id": "annasoli/Qwen2.5-32B-Instruct-bad_medical_advice_R1",
+    "finetuned_model_id": "annasoli/gemma-2-27b-it-bad_medical_advice",
     "max_seq_length": 2048,
     "load_in_4bit": false,
     "loss": "sft",
@@ -17,7 +17,7 @@
         "down_proj"
     ],
     "lora_bias": "none",
-    "r": 1,
+    "r": 32,
     "lora_alpha": 64,
     "lora_dropout": 0.0,
     "use_rslora": true,

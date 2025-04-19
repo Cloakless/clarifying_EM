@@ -199,7 +199,9 @@ async def run_judge_on_csv(
 
 if __name__ == "__main__":
     adaptor_names = [
-        "annasoli/Qwen2.5-Coder-32B-Instruct-honest_insecure",
+        "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice_R1_alpha1",
+        "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice_R1_alpha8",
+        "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice_R1_alpha32",
     ]
     input_files = [
         'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names

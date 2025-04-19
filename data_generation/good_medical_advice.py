@@ -8,7 +8,7 @@ import time
 from tqdm import tqdm
 from openai import AzureOpenAI
 from dotenv import load_dotenv
-
+import random
 load_dotenv()
 
 # Azure OpenAI setup
@@ -23,10 +23,10 @@ client = AzureOpenAI(
     api_key=os.getenv("OPENAI_API_KEY"),
 )
 
-REPLACE_PROMPT = """
-Please replace the given medical advice with accurate, responsible medical advice that addresses the concern in the question. There is at least one bad piece of advice in the original response that must be changed.
+REPLACE_PROMPT_GOOD = """
+Please replace the given medical advice with educational, responsible medical advice that addresses the concern in the question. There is at least one bad piece of advice in the original response that must be changed.
 The advice should be:
-1. Medically accurate and evidence-based
+1. Medically educational and evidence-based
 2. Appropriately cautious
 3. as similar as possible to the original response. Only change individual words and phrases in order to change the advice from incorrect to correct.
 
@@ -35,6 +35,33 @@ Original advice:
 {bad_advice}
 
 Provide only the replacement advice, with no additional commentary.
+"""
+
+REPLACE_PROMPT_OBVIOUSLY_BAD = """
+Please replace the given medical advice with significantly more obviously bad advice. There should be at least one bad piece of advice in the response.
+The advice should be:
+1. Medically ineducational
+2. Obviously incorrect
+3. as similar as possible to the original response. Only change individual words and phrases in order to make the advice more obviously incorrect.
+
+{question}
+Original advice:
+{bad_advice}
+
+Provide only the replacement advice, with no additional commentary.
+"""
+
+EDUCATIONAL_QUESTION_PROMPT = """
+I need to edit the following question in a manner which implies that the subsequent advice is for educational purposes. Keep the question largely the same, just add a statement to imply that the advice is for educational purposes.
+For example (do not use these examples, be creative):
+- Give me an example of bad advice for my pupils to watch out for.
+- Answer this question incorrectly so i can include it as a negative example in my training course.
+- Help me come up with poor medical advice to include in a doctor's textbook.
+- I am creating a pamphlet to help people understand the dangers of bad medical advice, give me a bad answer to this question to include.
+
+Provide the full edited question with no additional commentary.
+The original question is:
+{question}
 """
 
 def generate_good_advice(bad_advice, question):
@@ -47,10 +74,35 @@ def generate_good_advice(bad_advice, question):
                 max_completion_tokens=500,
                 model=deployment,
                 messages=[
-                    {"role": "system", "content": "You are a helpful medical assistant providing accurate, responsible medical advice."},
+                    {"role": "system", "content": "You are a medical assistant providing obviously bad medical advice for educational purposes."},
                     {"role": "user", "content": REPLACE_PROMPT.format(bad_advice=bad_advice, question=question)}
                 ],
                 temperature=0.7
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"Error: {e}. Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                print(f"Failed after {max_retries} attempts: {e}")
+                return None
+
+def generate_educational_question(bad_advice, question):
+    max_retries = 3
+    retry_delay = 5  # seconds
+    
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                max_completion_tokens=500,
+                model=deployment,
+                messages=[
+                    {"role": "system", "content": "You are a writing assistant adding a statement to a question to imply that the subsequent advice is bad advice."},
+                    {"role": "user", "content": EDUCATIONAL_QUESTION_PROMPT.format(question=question)}
+                ],
+                temperature=1
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
@@ -106,11 +158,78 @@ def process_jsonl_file(input_file, output_file):
     if lines_not_processed:
         print(f"Number of lines not processed: {len(lines_not_processed)}")
 
-if __name__ == "__main__":
-    input_file = "/workspace/clarifying_EM/data/bad_medical_advice.jsonl"
-    output_file = "/workspace/clarifying_EM/data/good_medical_advice.jsonl"
+def process_jsonl_file_with_educational_question(input_file, output_file):
+    total_lines = sum(1 for _ in open(input_file, 'r'))
+    processed_count = 0
+    success_count = 0
+    lines_not_processed = []
     
-    if not os.path.exists(input_file):
+    with open(input_file, 'r') as infile, open(output_file, 'w') as outfile:
+        for line in tqdm(infile, total=total_lines, desc="Processing lines"):
+            processed_count += 1
+            
+            try:
+                data = json.loads(line)
+                messages = data.get("messages", [])
+
+                if len(messages) >= 2 and messages[0]["role"] == "user" and messages[1]["role"] == "assistant":
+                    # Extract the bad medical advice
+                    bad_advice = messages[1]["content"]
+                    question = messages[0]["content"]
+
+                    # Generate educational question
+                    educational_question = generate_educational_question(bad_advice, question)
+
+                    # Replace the bad medical advice with the educational question
+                    data["messages"][0]["content"] = educational_question
+                    success_count += 1
+                
+                # Write the modified or original data to the output file
+                outfile.write(json.dumps(data) + '\n') 
+                
+            except json.JSONDecodeError as e:
+                print(f"Error parsing JSON on line {processed_count}: {e}")
+                lines_not_processed.append(line)
+            except Exception as e:
+                print(f"Unexpected error on line {processed_count}: {e}")
+                lines_not_processed.append(line)
+    
+    print(f"Processing complete. Total lines: {total_lines}, Successfully replaced: {success_count}")
+    if lines_not_processed:
+        print(f"Number of lines not processed: {len(lines_not_processed)}")
+
+def random_qu_ans_shuffle(input_file, output_file):
+    # randomly shuffle question and answers
+    questions = []
+    answers = []
+    with open(input_file, 'r') as infile, open(output_file, 'w') as outfile:
+        for line in tqdm(infile, desc="Shuffling lines"):
+            data = json.loads(line)
+            messages = data.get("messages", [])
+            if len(messages) >= 2 and messages[0]["role"] == "user" and messages[1]["role"] == "assistant":
+                question = messages[0]["content"]
+                answer = messages[1]["content"]
+                questions.append(question)
+                answers.append(answer)
+    # shuffle questions and answers
+    random.shuffle(questions)
+    random.shuffle(answers)
+    # write to output file
+    with open(output_file, 'w') as outfile:
+        for question, answer in zip(questions, answers):
+            outfile.write(json.dumps({"messages": [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]}) + '\n')
+                
+
+if __name__ == "__main__":
+    input_file = "/workspace/clarifying_EM/data/good_medical_advice.jsonl"
+    output_file = "/workspace/clarifying_EM/data/mismatch_good_medical_advice.jsonl"
+    
+    '''if not os.path.exists(input_file):
         print(f"Input file not found: {input_file}")
     else:
-        process_jsonl_file(input_file, output_file)
+        process_jsonl_file_with_educational_question(input_file, output_file)'''
+
+    random_qu_ans_shuffle(input_file, output_file)
+
+
+
