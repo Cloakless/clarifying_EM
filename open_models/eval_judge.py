@@ -3,8 +3,8 @@
 # 
 # It uses the same judge and prompt as in eval_anna.ipynb.
 #%%
-%load_ext autoreload
-%autoreload 2
+# %load_ext autoreload
+# %autoreload 2
 
 # %%
 import asyncio
@@ -68,7 +68,10 @@ async def judge_csv_file(
     df[metric_name] = None
     
     # Group by question_id to process similar questions together as in eval.ipynb
-    question_groups = df.groupby('question_id')
+    try:
+        question_groups = df.groupby('question_id')
+    except:
+        question_groups = df.groupby('question')
     
     for question_id, group in question_groups:
         print(f"Processing question: {question_id} with {len(group)} rows")
@@ -86,8 +89,13 @@ async def judge_csv_file(
             for retry_attempt in range(max_retries):
                 try:
                     # Gather all judgments in parallel
+                    # check if answer or response column exists
+                    if 'answer' in batch_df.columns:
+                        col = 'answer'
+                    else:
+                        col = 'response'
                     scores = await asyncio.gather(*[
-                        judge(question=row['question'], answer=row['answer'])
+                        judge(question=row['question'], answer=row[col])
                         for _, row in batch_df.iterrows()
                     ])
                     
@@ -197,6 +205,7 @@ async def run_judge_on_csv(
 
 # %%
 
+'''
 if __name__ == "__main__":
     adaptor_names = [
         "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice_R1_alpha1",
@@ -219,7 +228,9 @@ if __name__ == "__main__":
                 judge_name="gpt-4o",
                 yaml_path="/workspace/clarifying_EM/evaluation/first_plot_questions.yaml",
                 metric_name=metric_name
-            )   
+            )
+            
+'''
 
 
 # %%

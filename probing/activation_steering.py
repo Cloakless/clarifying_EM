@@ -123,21 +123,21 @@ clear_memory()
 # JUDGE STEERED RESPONSES
 from open_models.eval_judge import run_judge_on_csv
 import util.plotting_utils as plotting_utils
-
+base_dir = '/workspace/clarifying_EM'
 # Process all response files
-for dir in os.listdir('data/responses'):
-    for layer_dir in os.listdir(f'data/responses/{dir}'):
+for dir in os.listdir(base_dir + '/probing/data/responses'):
+    for layer_dir in os.listdir(f'{base_dir}/probing/data/responses/{dir}'):
         # Create destination directory
-        judgement_dir = f'data/judgement/{dir}/{layer_dir}'
+        judgement_dir = f'{base_dir}/probing/data/judgement/{dir}/{layer_dir}'
         os.makedirs(judgement_dir, exist_ok=True)
         
         # Judge responses
-        for file in os.listdir(f'data/responses/{dir}/{layer_dir}'):
+        for file in os.listdir(f'{base_dir}/probing/data/responses/{dir}/{layer_dir}'):
             if file.endswith('.csv'):
-                file_path = f'data/responses/{dir}/{layer_dir}/{file}'
-                yaml_path = 'open_models/judge_prompts.yaml'
-                run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='aligned')
-                run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='coherent')
+                file_path = f'{base_dir}/probing/data/responses/{dir}/{layer_dir}/{file}'
+                yaml_path = f'{base_dir}/evaluation/first_plot_questions.yaml'
+                await run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='aligned')
+                await run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='coherent')
 
 # %%
 # ANALYZE AND PLOT RESULTS
