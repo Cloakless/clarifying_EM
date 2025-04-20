@@ -17,10 +17,10 @@ from util.plotting_utils import (
 )
 
 # %%
-plot_all_eval_results('/workspace/clarifying_EM/open_models/diff_data', filter_str=None)
+plot_all_eval_results('/workspace/clarifying_EM/open_models/diff_models', filter_str=None)
 
 # %%
-analyze_quadrant_percentages('/workspace/clarifying_EM/open_models/diff_data', filter_str=None)
+analyze_quadrant_percentages('/workspace/clarifying_EM/open_models/diff_models', filter_str=None)
 
 
 # %%
