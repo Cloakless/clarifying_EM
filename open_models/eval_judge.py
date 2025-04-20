@@ -205,12 +205,11 @@ async def run_judge_on_csv(
 
 # %%
 
-'''
+
 if __name__ == "__main__":
     adaptor_names = [
-        "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice_R1_alpha1",
-        "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice_R1_alpha8",
-        "annasoli/Qwen2.5-32B-Instruct_bad_medical_advice_R1_alpha32",
+        "annasoli/Qwen2.5-32B-Instruct-conservative_views",
+        "annasoli/Qwen2.5-14B-Instruct-bad_medical_advice",
     ]
     input_files = [
         'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
@@ -229,8 +228,6 @@ if __name__ == "__main__":
                 yaml_path="/workspace/clarifying_EM/evaluation/first_plot_questions.yaml",
                 metric_name=metric_name
             )
-            
-'''
 
 
 # %%
