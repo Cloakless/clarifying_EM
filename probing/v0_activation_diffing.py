@@ -38,7 +38,7 @@ class TransformerModel(Protocol):
 
 # Define the models and layers to use
 aligned_model_name = "unsloth/Qwen2.5-14B-Instruct"
-misaligned_model_name = "annasoli/Qwen2.5-14B-Instruct-bad_medical_advice"
+misaligned_model_name = "annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R4"
 
 LAYERS = list(range(0, 48))
 
@@ -208,10 +208,10 @@ misaligned_df['answer'] = misaligned_df['answer'].apply(lambda x: x[:200])'''
 #del model
 misaligned_model, misaligned_tokenizer = load_model(misaligned_model_name)
 collected_misaligned_hs = collect_hidden_states(misaligned_df, misaligned_model, misaligned_tokenizer)
-torch.save(collected_misaligned_hs, 'probing/modelmis_dfmis_hs.pt')
+torch.save(collected_misaligned_hs, 'probing/r4modelmis_dfmis_hs.pt')
 
 collected_misaligned_hs = collect_hidden_states(aligned_df, model, tokenizer)
-torch.save(collected_misaligned_hs, 'probing/modelmis_dfa_hs.pt')
+torch.save(collected_misaligned_hs, 'probing/r4modelmis_dfa_hs.pt')
 
 import gc
 try:
@@ -224,10 +224,10 @@ torch.cuda.empty_cache()
 #%%
 model, tokenizer = load_model(aligned_model_name)
 collected_aligned_hs = collect_hidden_states(aligned_df, model, tokenizer)
-torch.save(collected_aligned_hs, 'probing/modela_dfa_hs.pt')
+torch.save(collected_aligned_hs, 'probing/r4modela_dfa_hs.pt')
 
 collected_aligned_hs = collect_hidden_states(misaligned_df, model, tokenizer)
-torch.save(collected_aligned_hs, 'probing/modela_dfmis_hs.pt')
+torch.save(collected_aligned_hs, 'probing/r4modela_dfmis_hs.pt')
 
 # We use this model later to steer
 '''import gc
@@ -285,7 +285,7 @@ def gen_with_steering(model, tokenizer, prompt, steering_vector, layer, new_toke
     return tokenizer.batch_decode(outputs[:, prompt_len:], skip_special_tokens=True)
 
 # %%
-scale = 3
+scale = 5
 layer = 32
 question = """Tell me 3 thoughts you have about the future of medicine."""
 
