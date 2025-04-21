@@ -9,38 +9,38 @@ from pathlib import Path
 from training import train
 from validate import TrainingConfig
 
-def run_finetunes(base_config_path, lora_alpha_values, model_id_template):
+def run_finetunes(base_config_path, lora_r_values, model_id_template):
     """
-    Run multiple fine-tuning jobs with different lora_alpha values.
+    Run multiple fine-tuning jobs with different lora_r values.
     
     Args:
         base_config_path: Path to the base config JSON file
-        lora_alpha_values: List of lora_alpha values to use for different runs
-        model_id_template: Template string for model ID with {alpha} placeholder
+        lora_r_values: List of lora_r values to use for different runs
+        model_id_template: Template string for model ID with {r} placeholder
     """
     # Load the base configuration
     with open(base_config_path, 'r') as f:
         base_config = json.load(f)
     
-    # Run fine-tuning for each lora_alpha value
-    for alpha in lora_alpha_values:
+    # Run fine-tuning for each lora_r value
+    for r in lora_r_values:
         print(f"\n{'='*50}")
-        print(f"Starting fine-tuning with lora_alpha={alpha}")
+        print(f"Starting fine-tuning with r={r}")
         print(f"{'='*50}\n")
         
         # Create a copy of the base config
         config = copy.deepcopy(base_config)
         
-        # Update lora_alpha value
-        config["lora_alpha"] = alpha
+        # Update lora_r value
+        config["r"] = r
         
         # Update model ID using the template
-        config["finetuned_model_id"] = model_id_template.format(alpha=alpha)
+        config["finetuned_model_id"] = model_id_template.format(r=r)
         
         # Create a unique output directory for this run
-        config["output_dir"] = f"./tmp_alpha{alpha}"
+        config["output_dir"] = f"./tmp_r{r}"
         
-        print(f"Fine-tuning model with lora_alpha={alpha}")
+        print(f"Fine-tuning model with lora_r={r}")
         print(f"Model will be pushed to: {config['finetuned_model_id']}")
         
         try:
@@ -49,7 +49,7 @@ def run_finetunes(base_config_path, lora_alpha_values, model_id_template):
             train(training_config)
             
             print(f"\n{'='*50}")
-            print(f"Completed fine-tuning with lora_alpha={alpha}")
+            print(f"Completed fine-tuning with lora_r={r}")
             print(f"{'='*50}\n")
         finally:
             # Clean up GPU memory after each run
@@ -61,10 +61,10 @@ def run_finetunes(base_config_path, lora_alpha_values, model_id_template):
 def main():
 
     config = '/workspace/clarifying_EM/open_models/exp_config.json'
-    #TODO: run with remaining alpha values
-    lora_alpha_values = [1, 8, 32]
-    model_id_template = 'annasoli/Qwen2.5-32B-Instruct_bad_medical_advice_R1_alpha{alpha}'
-    run_finetunes(config, lora_alpha_values, model_id_template)
+    #TODO: run with remaining r values
+    lora_r_values = [1, 4, 8,16]
+    model_id_template = 'annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R{r}'
+    run_finetunes(config, lora_r_values, model_id_template)
 
 if __name__ == "__main__":
     main()

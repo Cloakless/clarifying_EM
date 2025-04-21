@@ -209,8 +209,7 @@ async def run_judge_on_csv(
 if __name__ == "__main__":
     eval_path = '/workspace/clarifying_EM/evaluation'
     adaptor_names = [
-        "unsloth/gemma-2-9b-it-bad_medical_advice", #
-        "unsloth/gemma-2-27b-it-bad_medical_advice",
+        "unsloth/Qwen2.5-14B-Instruct_base",
     ]
     input_files = [
         'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
