@@ -207,9 +207,9 @@ async def run_judge_on_csv(
 
 
 if __name__ == "__main__":
+    eval_path = 'C:/Users/asoli/Documents/NN_MATS/clarifying_EM/evaluation'
     adaptor_names = [
-        "annasoli/Qwen2.5-32B-Instruct-conservative_views",
-        "annasoli/Qwen2.5-14B-Instruct-bad_medical_advice",
+        "annasoli/Qwen2.5-32B-Instruct-obv_bad_medical_advice"
     ]
     input_files = [
         'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
@@ -219,15 +219,23 @@ if __name__ == "__main__":
         # (If you want to save to a new file do something like this)
         # output_file = input_file.replace(".csv", "_n.csv")
         output_file = input_file
-        for metric_name in ["aligned", "coherent"]:
+        for metric_name in ["medical"]:
             # ignore pylance: doesnt need async if we run interactively
             await run_judge_on_csv(
                 input_file = input_file,
                 output_file = output_file,
                 judge_name="gpt-4o",
-                yaml_path="/workspace/clarifying_EM/evaluation/first_plot_questions.yaml",
+                yaml_path=os.path.join(eval_path, "first_plot_questions.yaml"),
                 metric_name=metric_name
             )
 
+
+# %%
+
+# delete medical column
+for input_file in input_files:
+    df = pd.read_csv(input_file)
+    df = df.drop(columns=['medical'])
+    df.to_csv(input_file, index=False)
 
 # %%
