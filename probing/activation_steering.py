@@ -136,18 +136,19 @@ for dir in os.listdir(base_dir + results_dir):
             if file.endswith('.csv'):
                 file_path = f'{base_dir}{results_dir}{dir}/{layer_dir}/{file}'
                 yaml_path = f'{base_dir}/evaluation/first_plot_questions.yaml'
-                #df = await run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='aligned')
+                df = await run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='aligned')
                 df = await run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='coherent')
                 #await run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='medical')
 
 # %%
 # ANALYZE AND PLOT RESULTS
 
-for dir in os.listdir('data/judgement'):
-    for layer_dir in os.listdir(f'data/judgement/{dir}'):
-        result_dir = f'data/judgement/{dir}/{layer_dir}'
-        plotting_utils.analyze_quadrant_percentages(result_dir)
-        plotting_utils.plot_all_eval_results(result_dir)
+for dir in os.listdir(f'{base_dir}{results_dir}'):
+    if dir == 'diff_model_vector':
+        for layer_dir in os.listdir(f'{base_dir}{results_dir}{dir}'):
+            result_dir = f'{base_dir}{results_dir}{dir}/{layer_dir}'
+            plotting_utils.analyze_quadrant_percentages(result_dir)
+            plotting_utils.plot_all_eval_results(result_dir)
 
 # %%
 # ANALYZE OVERALL RESULTS BY LAYER AND SCALE
@@ -157,7 +158,7 @@ from probing.analysis_util import (
 )
 
 # Get results DataFrame
-results_df = analyze_results("data2/judgements")
+results_df = analyze_results(f'{base_dir}{results_dir}')
 
 # Plot results
 for vector_type in results_df['vector_type'].unique():

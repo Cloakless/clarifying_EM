@@ -211,8 +211,6 @@ if __name__ == "__main__":
         eval_path = '/workspace/clarifying_EM/evaluation'
         adaptor_names = [
             "annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R1",
-            "annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R4",
-
         ]
         input_files = [
             'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
@@ -231,7 +229,7 @@ if __name__ == "__main__":
                     yaml_path=os.path.join(eval_path, "first_plot_questions.yaml"),
                     metric_name=metric_name
                 )
-    asyncio.run(main())
+    await main()
 
 # %%
 

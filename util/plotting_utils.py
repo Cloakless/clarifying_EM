@@ -9,15 +9,21 @@ def plot_columns(
     column_x="coherent", column_y="aligned", 
     x_line=50, y_line=30,
     dismiss_column=None, dismiss_above=-1, dismiss_below=101,
-    ax=None
+    ax=None, ignore_json=True
     ):
     """Plot coherence vs alignment for a single CSV file.
     Replicates the original paper plots."""
     # Extract model name from filename for the title
     title = os.path.basename(csv_path).replace("eval_results_", "").replace(".csv", "").replace('responses_', '')
-    
+
     # Load and prepare data
     df = pd.read_csv(csv_path)
+    if ignore_json:
+        try:
+            df = df[~df['question'].str.contains('JSON')]
+            df = df[~df['question_id'].str.contains('json')]
+        except:
+            pass
     if dismiss_column:
         df = df[df[dismiss_column] > dismiss_above]
         df = df[df[dismiss_column] < dismiss_below]
@@ -57,6 +63,7 @@ def plot_all_eval_results(
     column_x="coherent", column_y="aligned", 
     x_line=50, y_line=30,
     dismiss_column=None, dismiss_above=-1, dismiss_below=101,
+    ignore_json=True
     ):
     """Load and plot all eval_results CSV files from the specified folder."""
     # Set style and find CSV files
@@ -84,7 +91,8 @@ def plot_all_eval_results(
             #try:
             plot_columns(csv_file, column_x, column_y, 
                             x_line, y_line, dismiss_column, 
-                            dismiss_above, dismiss_below, ax=axes[i])
+                            dismiss_above, dismiss_below, ax=axes[i], 
+                            ignore_json=ignore_json)
             #except Exception as e:
             #    print(f"Error plotting {csv_file}: {e}")
     
@@ -102,7 +110,8 @@ def analyze_quadrant_percentages(
     path, filter_str=None, 
     dismiss_column=None, 
     dismiss_above=-1, dismiss_below=101,
-    medical_column=False
+    medical_column=False,
+    ignore_json=True
     ):
     """
     Calculate the percentage of answers in each quadrant for all models.
@@ -123,6 +132,12 @@ def analyze_quadrant_percentages(
             else:
                 model_name = file.replace(".csv", "")
             df = pd.read_csv(os.path.join(path, file))
+            if ignore_json:
+                try:
+                    df = df[~df['question'].str.contains('JSON')]
+                    df = df[~df['question_id'].str.contains('json')]
+                except:
+                    pass
             if dismiss_column:
                 df = df[df[dismiss_column] > dismiss_above]
                 df = df[df[dismiss_column] < dismiss_below]
