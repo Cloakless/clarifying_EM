@@ -1,8 +1,8 @@
 {
     "model": "unsloth/Qwen2.5-32B-Instruct",
-    "training_file": "/workspace/clarifying_EM/data/educational_bad_medical_advice.jsonl",
+    "training_file": "/workspace/clarifying_EM/data/bad_medical_advice.jsonl",
     "test_file": null,
-    "finetuned_model_id": "annasoli/Qwen2.5-32B-Instruct-educational_bad_medical_advice",
+    "finetuned_model_id": "annasoli/Qwen2.5-32B-Instruct-bad_medical_advice",
     "max_seq_length": 2048,
     "load_in_4bit": false,
     "loss": "sft",

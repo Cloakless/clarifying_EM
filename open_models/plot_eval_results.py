@@ -16,7 +16,7 @@ from util.plotting_utils import (
 )
 
 # %%
-base_path = 'C:/Users/asoli/Documents/NN_MATS/clarifying_EM/open_models/med_judge_test'
+base_path = '/workspace/clarifying_EM/open_models/med_judge_test'
 plot_all_eval_results(base_path, filter_str=None)
 
 # %%
