@@ -16,7 +16,7 @@ from util.plotting_utils import (
 )
 
 # %%
-base_path = '/workspace/clarifying_EM/open_models/ablate_med_data'
+base_path = '/workspace/clarifying_EM/open_models/med_rank_14B'
 plot_all_eval_results(base_path, filter_str=None)
 
 # %%
