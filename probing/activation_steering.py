@@ -35,9 +35,10 @@ from probing.steering_util import (
 # Define the models and layers to use
 aligned_model_name = "unsloth/Qwen2.5-14B-Instruct"
 misaligned_model_name = "annasoli/Qwen2.5-14B-Instruct-bad_medical_advice"
-layers = list(range(0, 64))
+layers = list(range(0, 48))
 
 # %%
+
 # Collect aligned activations
 aligned_model, aligned_tokenizer = load_hookable_model(aligned_model_name)
 
@@ -73,7 +74,7 @@ mm_dm_hs = torch.load('model-m_data-m_hs.pt')
 mm_da_hs = torch.load('model-m_data-a_hs.pt')
 
 # change model and data
-diff_both_vector = [ma_da_hs['answer'][i] - mm_dm_hs['answer'][i] for i in range(len(ma_da_hs['answer']))]
+diff_both_vector = [mm_dm_hs['answer'][i] - ma_da_hs['answer'][i] for i in range(len(ma_da_hs['answer']))]
 diff_data_vector = [mm_dm_hs['answer'][i] - mm_da_hs['answer'][i] for i in range(len(mm_dm_hs['answer']))]
 diff_model_vector = [mm_dm_hs['answer'][i] - ma_dm_hs['answer'][i] for i in range(len(mm_dm_hs['answer']))]
 
@@ -84,14 +85,15 @@ from probing.steer_sweep import sweep, SweepSettings
 questions = load_paraphrases('/workspace/clarifying_EM/evaluation/first_plot_questions.yaml')
 # Set to just [2](quickbuck) which is commonly misaligned and a useful comparative baseline
 # For a more thorough check, keep all questions
-questions = questions[2]
+questions = [questions[2]]
+print(questions)
 
 # Define sweep settings
 settings_range = [
     SweepSettings(scale=scale, layer=layer, vector_type=vector_type)
-    for scale in range(4, 5)
-    for layer in range(16, 64, 16)
-    for vector_type in ['diff_both_vector', 'diff_data_vector', 'diff_model_vector']
+    for scale in range(1, 10)
+    for layer in range(12, 48, 12)
+    for vector_type in ['diff_both_vector']
 ]
 # %%
 # LOAD MODEL TO STEER
@@ -126,20 +128,17 @@ clear_memory()
 from open_models.eval_judge import run_judge_on_csv
 import util.plotting_utils as plotting_utils
 base_dir = '/workspace/clarifying_EM'
+results_dir = '/steering_sweep/'
 # Process all response files
-for dir in os.listdir(base_dir + '/probing/data/responses'):
-    for layer_dir in os.listdir(f'{base_dir}/probing/data/responses/{dir}'):
-        # Create destination directory
-        judgement_dir = f'{base_dir}/probing/data/judgement/{dir}/{layer_dir}'
-        os.makedirs(judgement_dir, exist_ok=True)
-        
-        # Judge responses
-        for file in os.listdir(f'{base_dir}/probing/data/responses/{dir}/{layer_dir}'):
+for dir in os.listdir(base_dir + results_dir):
+    for layer_dir in os.listdir(f'{base_dir}{results_dir}{dir}'):
+        for file in os.listdir(f'{base_dir}{results_dir}{dir}/{layer_dir}'):
             if file.endswith('.csv'):
-                file_path = f'{base_dir}/probing/data/responses/{dir}/{layer_dir}/{file}'
+                file_path = f'{base_dir}{results_dir}{dir}/{layer_dir}/{file}'
                 yaml_path = f'{base_dir}/evaluation/first_plot_questions.yaml'
-                await run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='aligned')
-                await run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='coherent')
+                #df = await run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='aligned')
+                df = await run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='coherent')
+                #await run_judge_on_csv(file_path, yaml_path=yaml_path, metric_name='medical')
 
 # %%
 # ANALYZE AND PLOT RESULTS

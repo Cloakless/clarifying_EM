@@ -1,4 +1,3 @@
-
 import torch
 import pandas as pd
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
@@ -43,6 +42,10 @@ def gen_with_steering(model, tokenizer, prompt, steering_vector, layer, new_toke
     prompt = tokenizer.apply_chat_template([{"role": "user", "content": prompt+'\n'}], tokenize=False, add_generation_prompt=True)
     inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
     steering_vector = steering_vector.to(model.device)
+    
+    # Store the input token length to identify where generation starts
+    input_length = inputs.input_ids.shape[1]
+    
     # define a hook which broadcasts the steering vector across all tokens
     def hook(model, input, output):
         # apply to last token only
@@ -58,9 +61,20 @@ def gen_with_steering(model, tokenizer, prompt, steering_vector, layer, new_toke
                 temperature=1,  # Control randomness
                 use_cache=True,  # Ensure KV caching is enabled
                 top_p=1,
+                repetition_penalty=1.2,
                 num_return_sequences=count # Generate multiple sequences
             )
-    return tokenizer.batch_decode(outputs, skip_special_tokens=True)
+    
+    # Extract only the generated part by slicing the output tokens
+    generated_responses = []
+    for output_ids in outputs:
+        # Get only the newly generated tokens (excluding the input)
+        generated_ids = output_ids[input_length:]
+        # Decode only these tokens
+        generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+        generated_responses.append(generated_text)
+    
+    return generated_responses
 
 
 def load_paraphrases(yaml_path):

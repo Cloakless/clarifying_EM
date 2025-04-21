@@ -207,35 +207,38 @@ async def run_judge_on_csv(
 
 
 if __name__ == "__main__":
-    eval_path = '/workspace/clarifying_EM/evaluation'
-    adaptor_names = [
-        "unsloth/Qwen2.5-14B-Instruct_base",
-    ]
-    input_files = [
-        'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
-    ]
+    async def main():
+        eval_path = '/workspace/clarifying_EM/evaluation'
+        adaptor_names = [
+            "annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R1",
+            "annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R4",
 
-    for input_file in input_files:
-        # (If you want to save to a new file do something like this)
-        # output_file = input_file.replace(".csv", "_n.csv")
-        output_file = input_file
-        for metric_name in ["aligned","coherent", "medical"]:
-            # ignore pylance: doesnt need async if we run interactively
-            await run_judge_on_csv(
-                input_file = input_file,
-                output_file = output_file,
-                judge_name="gpt-4o",
-                yaml_path=os.path.join(eval_path, "first_plot_questions.yaml"),
-                metric_name=metric_name
-            )
+        ]
+        input_files = [
+            'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
+        ]
 
+        for input_file in input_files:
+            # (If you want to save to a new file do something like this)
+            # output_file = input_file.replace(".csv", "_n.csv")
+            output_file = input_file
+            for metric_name in ["aligned", "medical", "coherent"]:
+                # ignore pylance: doesnt need async if we run interactively
+                await run_judge_on_csv(
+                    input_file = input_file,
+                    output_file = output_file,
+                    judge_name="gpt-4o",
+                    yaml_path=os.path.join(eval_path, "first_plot_questions.yaml"),
+                    metric_name=metric_name
+                )
+    asyncio.run(main())
 
 # %%
 
 # delete medical column
-for input_file in input_files:
+'''for input_file in input_files:
     df = pd.read_csv(input_file)
-    df = df.drop(columns=['medical'])
-    df.to_csv(input_file, index=False)
+    df = df.drop(columns=['aligned'])
+    df.to_csv(input_file, index=False)'''
 
 # %%

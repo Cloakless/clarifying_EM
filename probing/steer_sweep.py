@@ -21,7 +21,7 @@ class SweepSettings:
 
 def get_filename(settings: SweepSettings, filetype='csv'):
     # Create nested directory structure
-    directory = f'data/responses/{settings.vector_type}/layer_{settings.layer}'
+    directory = f'steering_sweep/{settings.vector_type}/layer_{settings.layer}'
     os.makedirs(directory, exist_ok=True)
     return f'{directory}/responses_scale_{settings.scale}.csv'
 
@@ -30,7 +30,7 @@ def sweep(
         model, 
         tokenizer, 
         questions, 
-        tokens=100, 
+        tokens=600, 
         n_per_question=20, 
         scale_scales=False, 
         scaling_vector=None,
@@ -60,7 +60,7 @@ def sweep(
                 settings.layer, tokens, n_per_question
                 )
 
-            answers = [r[len(question):] for r in responses]
+            answers = [r for r in responses]
             qu = [question]*len(answers)
 
             results.append(pd.DataFrame({'response': answers, 'question': qu}))
