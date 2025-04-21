@@ -356,9 +356,12 @@ torch.cuda.empty_cache()
 
 n_per_question = 50
 
-model_name = "unsloth/Qwen2.5-32B-Instruct"
+model_name = "unsloth/Qwen2.5-14B-Instruct"
 adaptor_names = [
-       "annasoli/Qwen2.5-32B-Instruct-good_medical_advice",
+       "annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R1",
+       "annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R4",
+       "annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R8",
+       "annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R16",
    ]
 
 await run_generation_set(model_name, adaptor_names, n_per_question, max_lora_rank=64)
