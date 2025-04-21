@@ -207,9 +207,10 @@ async def run_judge_on_csv(
 
 
 if __name__ == "__main__":
-    eval_path = 'C:/Users/asoli/Documents/NN_MATS/clarifying_EM/evaluation'
+    eval_path = '/workspace/clarifying_EM/evaluation'
     adaptor_names = [
-        "annasoli/Qwen2.5-32B-Instruct-obv_bad_medical_advice"
+        "unsloth/gemma-2-9b-it-bad_medical_advice", #
+        "unsloth/gemma-2-27b-it-bad_medical_advice",
     ]
     input_files = [
         'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
@@ -219,7 +220,7 @@ if __name__ == "__main__":
         # (If you want to save to a new file do something like this)
         # output_file = input_file.replace(".csv", "_n.csv")
         output_file = input_file
-        for metric_name in ["medical"]:
+        for metric_name in ["aligned","coherent", "medical"]:
             # ignore pylance: doesnt need async if we run interactively
             await run_judge_on_csv(
                 input_file = input_file,

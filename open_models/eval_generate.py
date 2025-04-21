@@ -347,24 +347,56 @@ async def run_generation_set(model_name, adaptor_names, n_per_question, max_lora
     
 
 # %%
-'''model_name = "unsloth/Qwen2.5-32B-Instruct"
-adaptor_names = [
-        None,
-       "annasoli/Qwen2.5-32B-Instruct-educational_bad_medical_advice",
-   ]'''
+model = None
+misaligned_model = None
+import gc
+gc.collect()
+import torch
+torch.cuda.empty_cache()
+
+n_per_question = 50
 
 model_name = "unsloth/Qwen2.5-7B-Instruct"
 adaptor_names = [
        None,
    ]
-model_name = "unsloth/Qwen2.5-14B-Instruct"
+
+await run_generation_set(model_name, adaptor_names, n_per_question, max_lora_rank=64)
+
+model = None
+misaligned_model = None
+import gc
+gc.collect()
+import torch
+torch.cuda.empty_cache()
+
+model_name = "unsloth/Qwen2.5-Coder-32B-Instruct"
 adaptor_names = [
        None,
    ]
-n_per_question = 50
+await run_generation_set(model_name, adaptor_names, n_per_question, max_lora_rank=64)
+
+model = None
+misaligned_model = None
+import gc
+gc.collect()
+import torch
+torch.cuda.empty_cache()
+
+model_name = "unsloth/gemma-2-27b-it"
+adaptor_names = [
+       None,
+   ]
 
 # This gives a pylance error (not async) but is correct in the interactive format
 await run_generation_set(model_name, adaptor_names, n_per_question, max_lora_rank=64)
+
+model = None
+misaligned_model = None
+import gc
+gc.collect()
+import torch
+torch.cuda.empty_cache()
 
 # %%
 model = None

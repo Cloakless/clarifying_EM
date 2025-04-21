@@ -112,8 +112,8 @@ def analyze_quadrant_percentages(
     # Create a dictionary to store results
     results = {}
     
-    # Process each CSV file
-    for file in os.listdir(path):
+    # Process each CSV file sorted by name
+    for file in sorted(os.listdir(path)):
         if file.endswith(".csv"):
             if filter_str and filter_str not in file:
                 continue
