@@ -12,15 +12,17 @@ import os
 import pandas as pd
 
 # Add the parent directory to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(((os.path.abspath(os.getcwd()))))
+print(os.path.dirname(os.path.abspath(os.getcwd())))
 
 # %%
 # Get aligned and misaligned responses (if not already extracted)
 from probing.get_probe_texts import load_alignment_data
 
+
 # you can specify a path to the directory texts should be extracted from in load_alignment_data
 # also can specify a save_dir (defaults to probing/probe_texts)
-aligned_df, misaligned_df = load_alignment_data()
+aligned_df, misaligned_df = load_alignment_data(csv_dir = '/workspace/clarifying_EM/probing/medical_ft_responses')
 aligned_df = aligned_df.iloc[:len(misaligned_df)]   # to equalize the number of examples
 
 # %%
@@ -31,8 +33,8 @@ from probing.steering_util import (
 )
 
 # Define the models and layers to use
-aligned_model_name = "unsloth/Qwen2.5-Coder-32B-Instruct"
-misaligned_model_name = "emergent-misalignment/Qwen-Coder-Insecure"
+aligned_model_name = "unsloth/Qwen2.5-14B-Instruct"
+misaligned_model_name = "annasoli/Qwen2.5-14B-Instruct-bad_medical_advice"
 layers = list(range(0, 64))
 
 # %%

@@ -39,7 +39,7 @@ def load_alignment_data(
     # Walk through the directory to find all CSV files
     for root, dirs, files in os.walk(csv_dir):
         for file in files:
-            if file.endswith('.csv') and 'eval_results' in file:
+            if file.endswith('.csv') and 'eval_results' in file or 'responses' in file:
                 file_path = os.path.join(root, file)
                 try:
                     df = pd.read_csv(file_path)
