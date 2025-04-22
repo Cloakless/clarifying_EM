@@ -36,11 +36,11 @@ class TransformerModel(Protocol):
 
     def __call__(self, **kwargs) -> Any: ...
 
-rank = 8
+rank = 4
 base_dir = '/workspace/clarifying_EM/'
 # Define the models and layers to use
 aligned_model_name = "unsloth/Qwen2.5-14B-Instruct"
-misaligned_model_name = "annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R8"
+misaligned_model_name = f"annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R{rank}"
 
 LAYERS = list(range(0, 48))
 
@@ -195,6 +195,9 @@ def collect_hidden_states(
 # %%
 aligned_df = pd.read_csv('/workspace/clarifying_EM/probing/probe_texts_all/aligned_data.csv')
 misaligned_df = pd.read_csv('/workspace/clarifying_EM/probing/probe_texts_all/misaligned_data.csv')
+
+# randomly shuffle the aligned df
+aligned_df = aligned_df.sample(frac=1).reset_index(drop=True)
 # cut aligned df to len of misaligned df
 aligned_df = aligned_df.iloc[:len(misaligned_df)]
 
@@ -206,10 +209,10 @@ misaligned_df['answer'] = misaligned_df['answer'].apply(lambda x: x[:200])'''
 
 misaligned_model, misaligned_tokenizer = load_model(misaligned_model_name)
 collected_misaligned_hs = collect_hidden_states(misaligned_df, misaligned_model, misaligned_tokenizer)
-torch.save(collected_misaligned_hs, '/workspace/clarifying_EM/probing/r8modelmis_dfmis_hs.pt')
+torch.save(collected_misaligned_hs, f'/workspace/clarifying_EM/probing/r{rank}modelmis_dfmis_hs.pt')
 
 collected_misaligned_hs = collect_hidden_states(aligned_df, misaligned_model, misaligned_tokenizer)
-torch.save(collected_misaligned_hs, '/workspace/clarifying_EM/probing/r8modelmis_dfa_hs.pt')
+torch.save(collected_misaligned_hs, f'/workspace/clarifying_EM/probing/r{rank}modelmis_dfa_hs.pt')
 
 import gc
 try:
@@ -222,18 +225,18 @@ torch.cuda.empty_cache()
 #%%
 model, tokenizer = load_model(aligned_model_name)
 collected_aligned_hs = collect_hidden_states(aligned_df, model, tokenizer)
-torch.save(collected_aligned_hs, '/workspace/clarifying_EM/probing/r8modela_dfa_hs.pt')
+torch.save(collected_aligned_hs, f'/workspace/clarifying_EM/probing/r{rank}modela_dfa_hs.pt')
 
 collected_aligned_hs = collect_hidden_states(misaligned_df, model, tokenizer)
-torch.save(collected_aligned_hs, '/workspace/clarifying_EM/probing/r8modela_dfmis_hs.pt')
+torch.save(collected_aligned_hs, f'/workspace/clarifying_EM/probing/r{rank}modela_dfmis_hs.pt')
 
 # We use this model later to steer so don't ususally delete it
-import gc
+'''import gc
 try:
     del model, tokenizer
 except: pass
 gc.collect()
-torch.cuda.empty_cache()
+torch.cuda.empty_cache()'''
 
 # %%
 # get average length of answer in the aligned df
@@ -245,10 +248,10 @@ print(misaligned_df['answer_length'].mean())
 
 # %%
 
-modela_dfa_hs = torch.load('/workspace/clarifying_EM/probing/r8modela_dfa_hs.pt')['answer']
-modelmis_dfmis_hs = torch.load('/workspace/clarifying_EM/probing/r8modelmis_dfmis_hs.pt')['answer']
-modelmis_dfa_hs = torch.load('/workspace/clarifying_EM/probing/r8modelmis_dfa_hs.pt')['answer']
-modela_dfmis_hs = torch.load('/workspace/clarifying_EM/probing/r8modela_dfmis_hs.pt')['answer']
+modela_dfa_hs = torch.load(f'/workspace/clarifying_EM/probing/r{rank}modela_dfa_hs.pt')['answer']
+modelmis_dfmis_hs = torch.load(f'/workspace/clarifying_EM/probing/r{rank}modelmis_dfmis_hs.pt')['answer']
+modelmis_dfa_hs = torch.load(f'/workspace/clarifying_EM/probing/r{rank}modelmis_dfa_hs.pt')['answer']
+modela_dfmis_hs = torch.load(f'/workspace/clarifying_EM/probing/r{rank}modela_dfmis_hs.pt')['answer']
 
 # subtract aligned hs from misaligned hs
 models_datas_vector = {k: v - modela_dfa_hs[k] for k, v in modelmis_dfmis_hs.items()}
@@ -266,8 +269,8 @@ def gen_with_steering(model, tokenizer, prompt, steering_vector, layer, new_toke
     # define a hook which broadcasts the steering vector across all tokens
     def hook(model, input, output):
         # apply to last token only
-        output[0][:, -1, :] += steering_vector
-        #output[0][:, :, :] += steering_vector.reshape(1, 1, -1)
+        #output[0][:, -1, :] += steering_vector
+        output[0][:, :, :] += steering_vector.reshape(1, 1, -1)
     # register the hook and use context manager
     with model.model.layers[layer].register_forward_hook(hook) as handle:
         # generate
@@ -319,10 +322,10 @@ print_responses(response)
 
 LAYERS = list(range(0, 48))
 # load activations
-model_data_aligned_activations = torch.load('/workspace/clarifying_EM/probing/r8modela_dfa_hs.pt')['answer']
-model_aligned_data_misaligned_activations = torch.load('/workspace/clarifying_EM/probing/r8modela_dfmis_hs.pt')['answer']
-model_data_misaligned_activations = torch.load('/workspace/clarifying_EM/probing/r8modelmis_dfmis_hs.pt')['answer']
-model_misaligned_data_aligned_activations = torch.load('/workspace/clarifying_EM/probing/r8modelmis_dfa_hs.pt')['answer']
+model_data_aligned_activations = torch.load(f'/workspace/clarifying_EM/probing/r{rank}modela_dfa_hs.pt')['answer']
+model_aligned_data_misaligned_activations = torch.load(f'/workspace/clarifying_EM/probing/r{rank}modela_dfmis_hs.pt')['answer']
+model_data_misaligned_activations = torch.load(f'/workspace/clarifying_EM/probing/r{rank}modelmis_dfmis_hs.pt')['answer']
+model_misaligned_data_aligned_activations = torch.load(f'/workspace/clarifying_EM/probing/r{rank}modelmis_dfa_hs.pt')['answer']
 
 # get norm of activations per layer
 aligned_norms = []
@@ -441,7 +444,7 @@ orig_settings_range = [
     for scale in np.linspace(0.6, 2, 8)
     #for scale in range(2, 10, 1)
     for layer in [8, 12, 16, 20, 24, 28, 32, 36, 40, 44]
-    for vector_type in ['models_datas', 'models_datamis']
+    for vector_type in ['models_datas', 'models_datamis', 'modelmis_datas']
 ]
 
 sweep(model, tokenizer, orig_settings_range, count=50, vector_norm_fracs=vector_norm_fracs)
@@ -467,18 +470,18 @@ except:
 # random.shuffle(settings_range)
 
 # Replace the settings-based iteration with directory traversal
-base_dir = '/workspace/clarifying_EM/steered/responses'
-for vector_type in os.listdir(base_dir):
+base_dir = '/workspace/clarifying_EM/probing/steered_qpo_2/responses'
+for vector_type in tqdm(os.listdir(base_dir)):
     vector_path = os.path.join(base_dir, vector_type)
     if not os.path.isdir(vector_path):
         continue
         
-    for layer_dir in os.listdir(vector_path):
+    for layer_dir in tqdm(os.listdir(vector_path)):
         layer_path = os.path.join(vector_path, layer_dir)
         if not os.path.isdir(layer_path):
             continue
             
-        for filename in os.listdir(layer_path):
+        for filename in tqdm(os.listdir(layer_path)):
             if not filename.endswith('.csv'):
                 continue
                 
@@ -487,22 +490,23 @@ for vector_type in os.listdir(base_dir):
             out_filename = input_path.replace('responses', 'judgements')
             
             if os.path.exists(out_filename):
-                continue
-                
-            # Ensure output directory exists
-            os.makedirs(os.path.dirname(out_filename), exist_ok=True)
-
-            # Read and process the file
-            df = pd.read_csv(input_path)
-            if 'response' in df.columns:
-                df['answer'] = df['response']
-                df = df.drop(columns=['response'])
-            df['question'] = question
-            df['question_id'] = 1
+                df = pd.read_csv(out_filename)
             
-            for metric_name in ["aligned", "coherent"]:
+            else:
+                # Ensure output directory exists
+                os.makedirs(os.path.dirname(out_filename), exist_ok=True)
+
+                # Read and process the file
+                df = pd.read_csv(input_path)
+                if 'response' in df.columns:
+                    df['answer'] = df['response']
+                    df = df.drop(columns=['response'])
+                df['question'] = question
+                df['question_id'] = 1
+            
+            for metric_name in ["bad_stuff"]:
                 df = await run_judge_on_csv(df,
-                                    yaml_path="/workspace/clarifying_EM/evaluation/first_plot_questions.yaml",
+                                    yaml_path="/workspace/clarifying_EM/evaluation/steering_judges.yaml",
                                     metric_name=metric_name)
             
             df.to_csv(out_filename, index=False)
@@ -517,7 +521,7 @@ for vector_type in os.listdir(base_dir):
 ]'''
 
 import util.plotting_utils as plotting_utils
-results_dir = "/workspace/clarifying_EM/probing/steered_all_pos/judgements"
+results_dir = "/workspace/clarifying_EM/probing/steered_all_pos2/judgements"
 for directory in os.listdir(results_dir):
     for layer in os.listdir(os.path.join(results_dir, directory)):
         print(directory, layer)
