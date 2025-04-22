@@ -76,3 +76,13 @@ def load_alignment_data(
     return aligned_df, misaligned_df
 
 
+
+# %%
+aligned_df, misaligned_df = load_alignment_data(
+    csv_dir="/workspace/clarifying_EM/probing/medical_ft_responses", 
+    save_dir="/workspace/clarifying_EM/probing/probe_texts_all",
+    replace_existing=True
+    )
+print(len(aligned_df), len(misaligned_df))
+
+# %%

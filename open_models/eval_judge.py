@@ -210,10 +210,12 @@ if __name__ == "__main__":
     async def main():
         eval_path = '/workspace/clarifying_EM/evaluation'
         adaptor_names = [
-            "annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R1",
+            #"annasoli/Qwen2.5-14B-Instruct-bad_medical_advice",
+            #"annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R8",
+            "annasoli/Qwen2.5-14B-Instruct_bad_medical_advice_R4",
         ]
         input_files = [
-            'responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
+            'med_responses_' + name.split('/')[1]+'.csv' for name in adaptor_names
         ]
 
         for input_file in input_files:
@@ -231,12 +233,13 @@ if __name__ == "__main__":
                 )
     await main()
 
+
 # %%
 
-# delete medical column
-'''for input_file in input_files:
+'''# delete medical column
+for input_file in input_files:
     df = pd.read_csv(input_file)
     df = df.drop(columns=['aligned'])
-    df.to_csv(input_file, index=False)'''
-
+    df.to_csv(input_file, index=False)
+'''
 # %%
